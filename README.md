@@ -28,7 +28,7 @@ make paper          # compile LaTeX to PDF
 
 Or run everything at once: `make all`
 
-Individual scripts are in `experiments/`. Results write to `results/`, figures to `figures/`.
+Individual scripts are in `experiments/`. Results write to `results/`, figures and tables to `paper/`.
 
 ## License
 

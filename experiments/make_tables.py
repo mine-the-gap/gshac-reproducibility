@@ -10,7 +10,6 @@ Run after all benchmarks complete:
     python3 experiments/make_tables.py
 
 Outputs (in paper/):
-    tab_complexity.tex        — Algorithm complexity vs dense baseline
     tab_summary.tex           — Speedup across density scenarios
     tab_constk.tex            — Constant-k scaling
     tab_pysal.tex             — Graph-construction: GSHAC vs PySAL DistanceBand
@@ -80,33 +79,6 @@ def fmt_speedup(v, bold_max=None):
     if bold_max is not None and abs(v - bold_max) < 0.005:
         return f"$\\mathbf{{{s}\\times}}$"
     return f"${s}\\times$"
-
-
-# ── Table 1: Complexity (static — no CSV) ────────────────────────────
-
-def make_tab_complexity():
-    content = r"""\begin{table}[t]
-\caption{Complexity of Algorithm~\ref{alg:main} vs.\ dense baseline.}
-\label{tab:complexity}
-\small
-\begin{tabular}{lcc}
-\toprule
-\textbf{Step} & \textbf{Proposed} & \textbf{Dense baseline} \\
-\midrule
-Spatial index build    & $\Onotation{n \log n}$ & --- \\
-Candidate pair queries & $\Onotation{n \log n + m}$ & --- \\
-Distance computations  & $\Onotation{m}$ & $\Onotation{n^2}$ \\
-Storage                & $\Onotation{m}$ & $\Onotation{n^2}$ \\
-Connected components   & $\Onotation{n + m}$ & --- \\
-HAC (all components)   & $\Onotation{\sum_k c_k^2 \log c_k}$ & $\Onotation{n^2 \log n}$ \\
-\midrule
-\textbf{Total time}    & $\Onotation{n \log n + \sum_k c_k^2 \log c_k}$ & $\Onotation{n^2 \log n}$ \\
-\textbf{Total memory}  & $\Onotation{m} = \Onotation{nk}$ & $\Onotation{n^2}$ \\
-\bottomrule
-\end{tabular}
-\end{table}"""
-    write_table("complexity", content)
-
 
 # ── Table 2: Summary — speedup across density scenarios ───────────────
 
@@ -383,11 +355,11 @@ def make_tab_realworld():
 & \\textbf{{Dense baseline}} & \\textbf{{GSHAC}} \\\\
 \\midrule
 Distance pairs          & \\(\\approx {coeff:.1f} \\times 10^{{{exp}}}\\) & \\({fmt_int(n_edges)}\\) \\\\
-Graph/matrix storage    & \\(\\approx {int(round(dense_gb))}\\,\\text{{GB}}\\)      & \\({int(round(sparse_mb))}\\,\\text{{MB}}\\)   \\\\
+Graph/matrix storage    & \\(\\approx {int(round(dense_gb))}\\,\\text{{GiB}}\\)      & \\({int(round(sparse_mb))}\\,\\text{{MiB}}\\)   \\\\
 Graph construction      & ---                             & \\({graph_t:.1f}\\,\\text{{s}}\\) \\\\
 HAC (all components)    & \\(>\\,10\\,\\text{{h}}\\)             & \\({hac_t:.1f}\\,\\text{{s}}\\) \\\\
 Total wall time         & \\(>\\,10\\,\\text{{h}}\\)             & \\({total_t:.1f}\\,\\text{{s}}\\) \\\\
-Peak memory (HAC)       & \\(\\approx {int(round(dense_gb))}\\,\\text{{GB}}\\)      & \\({int(round(hac_mem))}\\,\\text{{MiB}}\\) \\\\
+Peak memory (HAC)       & \\(\\approx {int(round(dense_gb))}\\,\\text{{GiB}}\\)      & \\({int(round(hac_mem))}\\,\\text{{MiB}}\\) \\\\
 Feasible on workstation & No                              & Yes \\\\
 \\bottomrule
 \\end{{tabular}}
@@ -460,7 +432,7 @@ def make_tab_geonames():
         return f"{round(e / 1000)}k"
 
     def _sparse(h):
-        return f"{int(round(float(data[h]['sparse_mb'])))}\\,MB"
+        return f"{int(round(float(data[h]['sparse_mb'])))}\\,MiB"
 
     def _comps(h):
         return fmt_int(int(data[h]["n_components"]))
@@ -475,7 +447,7 @@ def make_tab_geonames():
 
     def _maxsub(h):
         gb = float(data[h]["max_sub_gb"])
-        return f"{gb:.2f}\\,GB" if gb < 1 else f"{gb:.1f}\\,GB"
+        return f"{gb:.2f}\\,GiB" if gb < 1 else f"{gb:.1f}\\,GiB"
 
     def _graph_t(h):
         return f"{int(round(float(data[h]['graph_time_s'])))}\\,s"
@@ -517,7 +489,7 @@ def make_tab_geonames():
     content = f"""\\begin{{table}}[t]
 \\caption{{GSHAC results on a 2M-point GeoNames sample
   (\\(n_{{\\text{{full}}}} = {n_full}\\)), single linkage, haversine.
-  Dense \\(n^2\\) for 2M: 32\\,TB; for \\(n_{{\\text{{full}}}}\\): 1.4\\,PB.}}
+  Dense \\(n^2\\) for 2M: 32\\,TiB; for \\(n_{{\\text{{full}}}}\\): 1.4\\,PiB.}}
 \\label{{tab:geonames}}
 \\small
 \\begin{{tabular}}{{lrrrr}}
@@ -627,9 +599,9 @@ def make_tab_geonames_full():
             return "---"
         mb = float(ex[h]["sparse_mb"])
         if mb >= 1000:
-            s = f"{mb / 1000:.1f}\\,GB"
+            s = f"{mb / 1000:.1f}\\,GiB"
         else:
-            s = f"{int(round(mb))}\\,MB"
+            s = f"{int(round(mb))}\\,MiB"
         return f"\\(\\sim\\){s}\\(^{{*}}\\)" if h == 5000 else s
 
     def _largest(h):
@@ -720,7 +692,6 @@ def make_tab_geonames_full():
 if __name__ == "__main__":
     print("Generating LaTeX tables from benchmark results...")
 
-    make_tab_complexity()
     make_tab_summary()
     make_tab_constk()
     make_tab_pysal()

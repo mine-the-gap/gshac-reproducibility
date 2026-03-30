@@ -301,7 +301,8 @@ def make_limits_figure(rows, out_path):
     log_m = np.log(sp_mem[valid])
     slope_m, intercept_m = np.polyfit(log_n, log_m, 1)
 
-    n_extrap = np.logspace(np.log10(ns[0]), 7.0, 100)  # up to 10M
+    n_max = 7.5  # log10 upper limit for extrapolation lines
+    n_extrap = np.logspace(np.log10(ns[0]), n_max, 100)
 
     sp_time_extrap = np.exp(intercept_t) * n_extrap ** slope_t
     sp_mem_extrap  = np.exp(intercept_m) * n_extrap ** slope_m
@@ -325,26 +326,44 @@ def make_limits_figure(rows, out_path):
 
     # Real-world reference points (from benchmark CSVs)
     rw_points = [
-        {"label": "Mining ($n$=261K)", "n": 261_073, "time": 40.9,
-         "mem": 1567 + 82, "t_ofs": (-8, 10), "m_ofs": (-8, 10)},
-        {"label": "GeoNames ($n$=2M)", "n": 2_000_000, "time": 477.7,
-         "mem": 770 + 171, "t_ofs": (10, 6), "m_ofs": (-8, -18)},
+        {"label": "$n$=261K", "n": 261_073, "time": 11.8,
+         "mem": 1855 + 109, "t_ofs": (1, 6), "m_ofs": (1, 6)},
+        {"label": "$n$=2M", "n": 2_000_000, "time": 165.3,
+         "mem": 919 + 441, "t_ofs": (1, 6), "m_ofs": (1, 6)},
     ]
+
+    # Find n where dense memory crosses 30 GiB RAM
+    n_infeasible = n_extrap[np.searchsorted(dn_mem_extrap, RAM_MIB)]
 
     fig, (ax_t, ax_m) = plt.subplots(1, 2, figsize=(7.16, 3.2))
 
+    for ax in (ax_t, ax_m):
+        ax.axvspan(n_infeasible, 10**7.5, alpha=0.08,
+                   color="red", zorder=0, label="_nolegend_")
+        ax.axvline(n_infeasible, color="#d62728", linestyle="-.",
+                   linewidth=0.7, alpha=0.5, zorder=0)
+
+    # Helper: place inline label along an extrapolation line
+    def inline_label(ax, x_arr, y_arr, text, color, idx=-3):
+        """Place text along the slope of a line at position idx."""
+        x0, x1 = np.log10(x_arr[idx - 1]), np.log10(x_arr[idx])
+        y0, y1 = np.log10(y_arr[idx - 1]), np.log10(y_arr[idx])
+        # Get slope in display coords for rotation
+        p0 = ax.transData.transform((x_arr[idx - 1], y_arr[idx - 1]))
+        p1 = ax.transData.transform((x_arr[idx], y_arr[idx]))
+        angle = np.degrees(np.arctan2(p1[1] - p0[1], p1[0] - p0[0]))
+        ax.text(x_arr[idx], y_arr[idx], text, fontsize=7, color=color,
+                rotation=angle, rotation_mode="anchor",
+                ha="right", va="bottom")
+
     # ── Left panel: time ──
-    ax_t.fill_between(n_extrap, dn_time_extrap,
-                      np.max(dn_time_extrap) * 10,
-                      alpha=0.08, color="red", label="_nolegend_")
     ax_t.plot(n_extrap, dn_time_extrap, color="#d62728", linestyle=":",
-              linewidth=1.0, alpha=0.7, label="Dense $O(n^2)$ extrap.")
+              linewidth=1.0, alpha=0.7)
     ax_t.plot(ns[dn_valid], dn_time[dn_valid], color="#d62728",
-              linestyle="-", marker="D", markersize=4, linewidth=1.2,
-              label="Dense (measured)")
+              linestyle="-", marker="s", markersize=4, linewidth=1.2,
+              label="Dense (fastcluster)")
     ax_t.plot(n_extrap, sp_time_extrap, color="#1f77b4", linestyle=":",
-              linewidth=1.0, alpha=0.7,
-              label=f"GSHAC extrap. ($n^{{{slope_t:.1f}}}$)")
+              linewidth=1.0, alpha=0.7)
     ax_t.plot(ns, sp_time, color="#1f77b4", linestyle="-", marker="o",
               markersize=4, linewidth=1.2, label="GSHAC (constant $\\bar{k}$)")
 
@@ -355,32 +374,21 @@ def make_limits_figure(rows, out_path):
                       textcoords="offset points", xytext=rw["t_ofs"],
                       fontsize=7, color="#2ca02c")
 
-    # 1-hour reference line (skip 1-day — falls in dense zone, hard to read)
-    ax_t.axhline(3600, color="grey", linestyle="--",
-                 linewidth=0.6, alpha=0.5)
-    ax_t.text(n_extrap[-1] * 0.7, 3600 * 0.65, "1 hour",
-              fontsize=7, color="grey", ha="right")
-
     ax_t.set_xscale("log")
     ax_t.set_yscale("log")
     ax_t.set_xlabel("$n$")
     ax_t.set_ylabel("Wall time (s)")
-    ax_t.set_title("Time scalability")
-    ax_t.legend(loc="upper left", fontsize=7, framealpha=0.9)
+    # ax_t.set_title("Time scalability")
     ax_t.grid(True, which="both", linestyle=":", linewidth=0.4, alpha=0.5)
 
     # ── Right panel: memory ──
-    ax_m.fill_between(n_extrap, dn_mem_extrap,
-                      np.max(dn_mem_extrap) * 10,
-                      alpha=0.08, color="red")
     ax_m.plot(n_extrap, dn_mem_extrap, color="#d62728", linestyle=":",
-              linewidth=1.0, alpha=0.7, label="Dense $O(n^2)$ extrap.")
+              linewidth=1.0, alpha=0.7)
     ax_m.plot(ns[dn_valid], dn_mem[dn_valid], color="#d62728",
-              linestyle="-", marker="D", markersize=4, linewidth=1.2,
-              label="Dense (measured)")
+              linestyle="-", marker="s", markersize=4, linewidth=1.2,
+              label="Dense (fastcluster)")
     ax_m.plot(n_extrap, sp_mem_extrap, color="#1f77b4", linestyle=":",
-              linewidth=1.0, alpha=0.7,
-              label=f"GSHAC extrap. ($n^{{{slope_m:.1f}}}$)")
+              linewidth=1.0, alpha=0.7)
     ax_m.plot(ns, sp_mem, color="#1f77b4", linestyle="-", marker="o",
               markersize=4, linewidth=1.2, label="GSHAC (constant $\\bar{k}$)")
 
@@ -392,17 +400,46 @@ def make_limits_figure(rows, out_path):
                       fontsize=7, color="#2ca02c")
 
     # RAM ceiling
-    ax_m.axhline(RAM_MIB, color="#d62728", linestyle="-.", linewidth=0.8)
-    ax_m.text(n_extrap[0] * 1.5, RAM_MIB * 1.4, "30 GiB RAM",
-              fontsize=7, color="#d62728", ha="left")
+    ax_m.axhline(RAM_MIB, color="grey", linestyle="--", linewidth=0.6, alpha=0.5)
+    ax_m.text(n_extrap[0] * 1, RAM_MIB * 1.4, "30 GiB RAM",
+              fontsize=7, color="grey", ha="left")
 
     ax_m.set_xscale("log")
     ax_m.set_yscale("log")
     ax_m.set_xlabel("$n$")
     ax_m.set_ylabel("Peak memory (MiB)")
-    ax_m.set_title("Memory scalability")
-    ax_m.legend(loc="upper left", fontsize=7, framealpha=0.9)
+    # ax_m.set_title("Memory scalability")
     ax_m.grid(True, which="both", linestyle=":", linewidth=0.4, alpha=0.5)
+
+    # Force layout so transData gives correct angles for inline labels
+    fig.tight_layout()
+    fig.canvas.draw()
+
+    # Inline labels on extrapolation lines (time)
+    inline_label(ax_t, n_extrap, dn_time_extrap, " $O(n^2)$", "#d62728")
+    inline_label(ax_t, n_extrap, sp_time_extrap,
+                 f" $n^{{{slope_t:.1f}}}$", "#1f77b4")
+
+    # Inline labels on extrapolation lines (memory)
+    inline_label(ax_m, n_extrap, dn_mem_extrap, " $O(n^2)$", "#d62728")
+    inline_label(ax_m, n_extrap, sp_mem_extrap,
+                 f" $n^{{{slope_m:.1f}}}$", "#1f77b4")
+
+    # Label the infeasible zone on both panels
+    for ax in (ax_t, ax_m):
+        ax.text(n_infeasible * 1.15, 0.02, "Dense exceeds RAM",
+                fontsize=7, color="#d62728", ha="left", va="bottom",
+                transform=ax.get_xaxis_transform())
+
+    # Single shared legend below both panels
+    handles, labels = ax_t.get_legend_handles_labels()
+    # Add real-world marker to legend
+    handles.append(Line2D([0], [0], marker="*", color="w",
+                          markerfacecolor="#2ca02c", markersize=10,
+                          label="Real-world benchmarks"))
+    labels.append("Real-world benchmarks")
+    fig.legend(handles, labels, loc="lower center", ncol=3,
+               frameon=False, fontsize=7, bbox_to_anchor=(0.5, -0.02))
 
     fig.tight_layout()
     fig.savefig(out_path, bbox_inches="tight")

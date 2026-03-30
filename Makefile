@@ -15,7 +15,7 @@ setup:
 
 ## Generate synthetic datasets (run once before experiments)
 data:
-	$(PYTHON) scripts/generate_synthetic.py
+	$(PYTHON) experiments/generate_synthetic.py
 
 ## Run all experiments (order matters for dependencies)
 experiments:
