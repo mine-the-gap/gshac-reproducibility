@@ -1,4 +1,4 @@
-.PHONY: setup data experiments figures tables paper clean all overleaf-push overleaf-pull
+.PHONY: setup data experiments figures tables paper clean all
 
 VENV = .venv
 PYTHON = $(VENV)/bin/python3
@@ -40,14 +40,6 @@ paper:
 	  bibtex main && \
 	  pdflatex -interaction=nonstopmode main.tex && \
 	  pdflatex -interaction=nonstopmode main.tex
-
-## Push paper/ to Overleaf
-overleaf-push:
-	git subtree push --prefix=paper overleaf master
-
-## Pull Overleaf changes into paper/
-overleaf-pull:
-	git subtree pull --prefix=paper overleaf master --squash
 
 ## Remove generated figures, results, and LaTeX build artifacts
 clean:
