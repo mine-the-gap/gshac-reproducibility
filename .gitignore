@@ -1,0 +1,28 @@
+# Generated outputs — reproduce via make benchmark / make data
+figures/
+results/
+data/
+
+# Claude Code local settings
+.claude/
+CONTEXT.md
+
+# LaTeX build artifacts
+paper/*.aux
+paper/*.bbl
+paper/*.blg
+paper/*.log
+paper/*.out
+paper/*.pdf
+paper/comment.cut
+texput.log
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+.pytest_cache/
+
+# OS
+.DS_Store

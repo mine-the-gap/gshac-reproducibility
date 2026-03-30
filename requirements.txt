@@ -1,0 +1,5 @@
+gshac[plot,geo] @ git+https://github.com/vwmaus/gshac.git
+fastcluster
+libpysal>=4.9
+spopt>=0.6
+hdbscan
