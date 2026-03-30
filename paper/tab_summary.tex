@@ -1,0 +1,29 @@
+\begin{table}[t]
+\caption{Speedup across density scenarios.
+  T\,=\,tight, M\,=\,moderate, L\,=\,loose.
+  ``Graph\%'' is the fraction of sparse runtime spent on graph
+  construction.}
+\label{tab:summary}
+\small
+\begin{tabular}{rrr rrr}
+\toprule
+$n$ & $\hmax$ & Sc. & Time & Mem & Graph\% \\
+\midrule
+ \multirow{3}{*}{10{,}000} & \multirow{3}{*}{10 km} & T & $2.62\times$ & $17.5\times$ & 38\% \\
+  &  & M & $1.70\times$ & $9.44\times$ & 43\% \\
+  &  & L & $0.72\times$ & $4.17\times$ & 43\% \\
+\addlinespace
+ \multirow{3}{*}{10{,}000} & \multirow{3}{*}{20 km} & T & $2.32\times$ & $14.1\times$ & 39\% \\
+  &  & M & $1.55\times$ & $8.27\times$ & 42\% \\
+  &  & L & $0.65\times$ & $3.84\times$ & 42\% \\
+\addlinespace
+ \multirow{3}{*}{25{,}000} & \multirow{3}{*}{10 km} & T & $\mathbf{3.11\times}$ & $\mathbf{17.5\times}$ & 44\% \\
+  &  & M & $1.62\times$ & $9.46\times$ & 42\% \\
+  &  & L & $0.62\times$ & $4.17\times$ & 38\% \\
+\addlinespace
+ \multirow{3}{*}{25{,}000} & \multirow{3}{*}{20 km} & T & $2.42\times$ & $14.2\times$ & 44\% \\
+  &  & M & $1.36\times$ & $8.21\times$ & 41\% \\
+  &  & L & $0.55\times$ & $3.84\times$ & 36\% \\
+\bottomrule
+\end{tabular}
+\end{table}

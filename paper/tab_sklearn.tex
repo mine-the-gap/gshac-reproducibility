@@ -1,0 +1,19 @@
+\begin{table}[t]
+\caption{GSHAC vs.\ scikit-learn connectivity HAC (single linkage,
+  moderate, \(\hmax = 10\)\,km, \(h_{\text{cut}} = 5\)\,km).
+  Cluster counts agree exactly.}
+\label{tab:sklearn}
+\small
+\begin{tabular}{r r r r r}
+\toprule
+\(n\) & GSHAC (s) & sklearn (s) & Ratio & Clusters \\
+\midrule
+500 & 0.022 & 0.251 & 11.4$\times$ & 49 \\
+1{,}000 & 0.026 & 0.291 & 11.2$\times$ & 49 \\
+2{,}500 & 0.032 & 0.456 & 14.1$\times$ & 48 \\
+5{,}000 & 0.063 & 1.008 & 16.1$\times$ & 49 \\
+10{,}000 & 0.186 & 3.046 & 16.3$\times$ & 48 \\
+25{,}000 & 1.199 & 16.919 & 14.1$\times$ & 48 \\
+\bottomrule
+\end{tabular}
+\end{table}

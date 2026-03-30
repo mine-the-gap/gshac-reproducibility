@@ -1,0 +1,27 @@
+\begin{table}[t]
+  \centering
+  \caption{Graph-construction time: GSHAC \texttt{query\_pairs}
+           vs.\ PySAL \texttt{DistanceBand}, \(h_{\max}=10\)\,km.}
+  \label{tab:pysal}
+  \small
+  \begin{tabular}{lrrrr}
+    \toprule
+    Scenario & \(n\) & GSHAC (s) & DistanceBand (s) & Ratio \\
+    \midrule
+    Tight & 1{,}000 & 0.001 & 0.048 & 43$\times$ \\
+    Tight & 5{,}000 & 0.015 & 1.118 & 75$\times$ \\
+    Tight & 10{,}000 & 0.062 & 4.421 & 71$\times$ \\
+    Tight & 25{,}000 & 0.403 & 29.042 & 72$\times$ \\
+    \addlinespace
+    Moderate & 1{,}000 & 0.002 & 0.086 & 55$\times$ \\
+    Moderate & 5{,}000 & 0.027 & 2.087 & 78$\times$ \\
+    Moderate & 10{,}000 & 0.118 & 8.341 & 71$\times$ \\
+    Moderate & 25{,}000 & 0.760 & 53.376 & 70$\times$ \\
+    \addlinespace
+    Loose & 1{,}000 & 0.003 & 0.189 & 66$\times$ \\
+    Loose & 5{,}000 & 0.066 & 4.658 & 71$\times$ \\
+    Loose & 10{,}000 & 0.276 & 18.549 & 67$\times$ \\
+    Loose & 25{,}000 & 1.803 & 124.742 & 69$\times$ \\
+    \bottomrule
+  \end{tabular}
+\end{table}

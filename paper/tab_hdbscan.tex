@@ -1,0 +1,20 @@
+\begin{table}[t]
+\caption{Resource comparison: \texttt{sklearn} HDBSCAN vs.\ GSHAC
+  on the mining dataset (\(n = 261{,}073\), haversine).
+  Non-equivalent outputs; illustrates resource profiles only.}
+\label{tab:hdbscan}
+\small
+\begin{tabular}{lrrrr}
+\toprule
+\textbf{Method} & \textbf{Time} & \textbf{Mem} & \textbf{Clusters} & \textbf{Noise} \\
+\midrule
+HDBSCAN (mcs\,=\,2) & 1{,}624\,s & 111\,MiB & 76{,}021 & 11.9\% \\
+HDBSCAN (mcs\,=\,5) & 1{,}577\,s & 88\,MiB & 17{,}014 & 24.4\% \\
+\addlinespace
+GSHAC (\(\hmax\!=\!20\)\,km)\(^{*}\) & 12\,s & 109\,MiB & --- & 0\% \\
+\quad\(\to h\!=\!5\)\,km  & & & 80{,}185 & \\
+\quad\(\to h\!=\!20\)\,km & & & 17{,}883 & \\
+\bottomrule
+\multicolumn{5}{l}{\footnotesize \(^{*}\)Single run; dendrogram cut at any \(h \leq \hmax\).}
+\end{tabular}
+\end{table}

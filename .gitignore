@@ -13,7 +13,7 @@ paper/*.bbl
 paper/*.blg
 paper/*.log
 paper/*.out
-paper/*.pdf
+paper/main.pdf
 paper/comment.cut
 texput.log
 

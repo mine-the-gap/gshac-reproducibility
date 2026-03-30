@@ -2,14 +2,14 @@
 make_tables.py
 
 Generate all paper tables as standalone LaTeX files from benchmark CSV results.
-Each table is saved as figures/tab_<name>.tex and can be included in main.tex
-via \\input{../figures/tab_<name>.tex}.
+Each table is saved as paper/tab_<name>.tex and can be included in main.tex
+via \\input{tab_<name>.tex}.
 
 Run after all benchmarks complete:
 
     python3 experiments/make_tables.py
 
-Outputs (in figures/):
+Outputs (in paper/):
     tab_complexity.tex        — Algorithm complexity vs dense baseline
     tab_summary.tex           — Speedup across density scenarios
     tab_constk.tex            — Constant-k scaling
@@ -31,7 +31,7 @@ import sys
 
 _ROOT = os.path.join(os.path.dirname(__file__), "..")
 RESULTS_DIR = os.path.join(_ROOT, "results")
-FIGURES_DIR = os.path.join(_ROOT, "figures")
+FIGURES_DIR = os.path.join(_ROOT, "paper")
 os.makedirs(FIGURES_DIR, exist_ok=True)
 
 
@@ -731,4 +731,4 @@ if __name__ == "__main__":
     make_tab_hdbscan()
     make_tab_geonames_full()
 
-    print("Done — all tables written to figures/")
+    print("Done — all tables written to paper/")

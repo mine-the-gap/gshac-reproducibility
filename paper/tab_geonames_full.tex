@@ -1,0 +1,25 @@
+\begin{table}[t]
+\caption{Estimated resources for full GeoNames (\(n = 13{,}412{,}837\)).
+  Graph rows: measured on full dataset (graph construction only).
+  HAC rows: linearly extrapolated from 2M sample.
+  Hardware: AMD Ryzen~7 PRO 8840U, 30\,GiB DDR5.}
+\label{tab:geonames_full}
+\small
+\begin{tabular}{lrrrr}
+\toprule
+& \textbf{500\,m} & \textbf{1\,km} & \textbf{2\,km} & \textbf{5\,km} \\
+\midrule
+Edges & 11.8M & 35.7M & 112.1M & --- \\
+Sparse storage & 190\,MB & 571\,MB & 1.8\,GB & --- \\
+Largest component & 11{,}156 & 439{,}465 & 593{,}273 & --- \\
+\addlinespace
+Graph time & 3.9\,min & 4.0\,min & 4.9\,min & --- \\
+Graph memory & 5.0\,GiB & 10.2\,GiB & 26.8\,GiB & --- \\
+\addlinespace
+HAC time (est.) & \(\sim\)4\,min & \(\sim\)10\,min & \(\sim\)15\,min & \(\sim\)11\,min \\
+HAC memory (est.) & \(\sim\)1.8\,GiB & \(\sim\)2.4\,GiB & \(\sim\)2.9\,GiB & \(\sim\)2.9\,GiB \\
+\textbf{Total (est.)} & \textbf{\(\sim\)8\,min} & \textbf{\(\sim\)14\,min} & \textbf{\(\sim\)20\,min} & \textbf{needs 64\,GiB} \\
+\bottomrule
+\multicolumn{5}{l}{\footnotesize \(^{*}\)Extrapolated; graph exceeded 30\,GiB RAM at \(\hmax = 5\)\,km.} \\
+\end{tabular}
+\end{table}
