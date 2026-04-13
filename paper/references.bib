@@ -1,211 +1,24 @@
-% -----------------------------------------------------------------------
-% Core HAC algorithms
-% -----------------------------------------------------------------------
-
-@article{mullner2013,
-  author    = {Müllner, Daniel},
-  title     = {fastcluster: Fast Hierarchical, Agglomerative Clustering
-               Routines for {R} and {Python}},
-  journal   = {Journal of Statistical Software},
-  year      = {2013},
-  volume    = {53},
-  number    = {9},
-  pages     = {1--18},
-  doi       = {10.18637/jss.v053.i09}
+@article{virtanen2020,
+  author    = {Virtanen, Pauli and others},
+  title     = {{SciPy} 1.0: Fundamental Algorithms for Scientific Computing
+               in {Python}},
+  journal   = {Nature Methods},
+  year      = {2020},
+  volume    = {17},
+  pages     = {261--272},
+  doi       = {10.1038/s41592-019-0686-2}
 }
-
-@article{sibson1973,
-  author    = {Sibson, Robin},
-  title     = {{SLINK}: An Optimally Efficient Algorithm for the Single-Link
-               Cluster Method},
-  journal   = {The Computer Journal},
-  year      = {1973},
-  volume    = {16},
-  number    = {1},
-  pages     = {30--34},
-  doi       = {10.1093/comjnl/16.1.30}
-}
-
-@article{gower1969,
-  author    = {Gower, John C. and Ross, Graham J. S.},
-  title     = {Minimum Spanning Trees and Single Linkage Cluster Analysis},
-  journal   = {Journal of the Royal Statistical Society: Series C
-               (Applied Statistics)},
-  year      = {1969},
-  volume    = {18},
-  number    = {1},
-  pages     = {54--64},
-  doi       = {10.2307/2346439}
-}
-
-% -----------------------------------------------------------------------
-% Sparse-input exact HAC (bioinformatics)
-% -----------------------------------------------------------------------
-
-@inproceedings{nguyen2014sparsehc,
-  author    = {Nguyen, Thuy-Diem and Schmidt, Bertil and Kwoh, Chee Keong},
-  title     = {{SparseHC}: A Memory-efficient Online Hierarchical Clustering
-               Algorithm},
-  booktitle = {Procedia Computer Science},
-  year      = {2014},
-  volume    = {29},
-  pages     = {8--19},
-  doi       = {10.1016/j.procs.2014.05.001}
-}
-
-@article{loewenstein2008mcupgma,
-  author    = {Loewenstein, Yaniv and Portugaly, Elon and Fromer, Menachem
-               and Linial, Michal},
-  title     = {Efficient algorithms for accurate hierarchical clustering of
-               huge datasets: tackling the entire protein space},
-  journal   = {Bioinformatics},
-  year      = {2008},
-  volume    = {24},
-  number    = {13},
-  pages     = {i41--i49},
-  doi       = {10.1093/bioinformatics/btn174}
-}
-
-% -----------------------------------------------------------------------
-% Scaling HAC to very large datasets
-% -----------------------------------------------------------------------
-
-@inproceedings{sumengen2021rac,
-  author    = {Sumengen, Baris and Rajagopalan, Anand and Citovsky, Gui
-               and Simcha, David and Bachem, Olivier and Mitra, Pradipta
-               and Blasiak, James and Liang, Peter and Kumar, Sanjiv},
-  title     = {Scaling Hierarchical Agglomerative Clustering to
-               Billion-sized Datasets},
-  booktitle = {Proceedings of the 27th ACM SIGKDD International Conference
-               on Knowledge Discovery \& Data Mining},
-  year      = {2021},
-  pages     = {1508--1518},
-  doi       = {10.1145/3447548.3467404}
-}
-
-@inproceedings{monath2019,
-  author    = {Monath, Nicholas and Zaheer, Manzil and Silva, Daniel and
-               McCallum, Andrew and Ahmed, Amr},
-  title     = {Scalable Hierarchical Clustering with Tree Grafting},
-  booktitle = {Proceedings of the 25th ACM SIGKDD International Conference
-               on Knowledge Discovery \& Data Mining},
-  year      = {2019},
-  pages     = {1438--1448},
-  doi       = {10.1145/3292500.3330929}
-}
-
-@inproceedings{wang2021emst,
-  author    = {Wang, Yiqiu and Yu, Shangdi and Gu, Yan and Shun, Julian},
-  title     = {Fast Parallel Algorithms for {Euclidean} Minimum Spanning Tree
-               and Hierarchical Spatial Clustering},
-  booktitle = {Proceedings of the 2021 International Conference on
-               Management of Data (SIGMOD)},
-  year      = {2021},
-  pages     = {1982--2001},
-  doi       = {10.1145/3448016.3457296}
-}
-
-% -----------------------------------------------------------------------
-% Density-based and MST-based spatial clustering
-% -----------------------------------------------------------------------
-
-@inproceedings{ester1996,
-  author    = {Ester, Martin and Kriegel, Hans-Peter and Sander, Jörg
-               and Xu, Xiaowei},
-  title     = {A Density-Based Algorithm for Discovering Clusters in Large
-               Spatial Databases with Noise},
-  booktitle = {Proceedings of the 2nd International Conference on Knowledge
-               Discovery and Data Mining (KDD)},
-  year      = {1996},
-  pages     = {226--231},
-  publisher = {AAAI Press}
-}
-
-@inproceedings{ankerst1999,
-  author    = {Ankerst, Mihael and Breunig, Markus M. and Kriegel,
-               Hans-Peter and Sander, Jörg},
-  title     = {{OPTICS}: Ordering Points to Identify the Clustering Structure},
-  booktitle = {Proceedings of the 1999 ACM SIGMOD International Conference
-               on Management of Data},
-  year      = {1999},
-  pages     = {49--60},
-  doi       = {10.1145/304182.304187}
-}
-
-@article{mcinnes2017hdbscan,
-  author    = {McInnes, Leland and Healy, John and Astels, Steve},
-  title     = {{hdbscan}: Hierarchical density based clustering},
-  journal   = {Journal of Open Source Software},
-  year      = {2017},
-  volume    = {2},
-  number    = {11},
-  pages     = {205},
-  doi       = {10.21105/joss.00205}
-}
-
-@article{gagolewski2021genieclust,
-  author    = {Gagolewski, Marek},
-  title     = {{genieclust}: Fast and robust hierarchical clustering},
-  journal   = {SoftwareX},
-  year      = {2021},
-  volume    = {15},
-  pages     = {100722},
-  doi       = {10.1016/j.softx.2021.100722}
-}
-
-% -----------------------------------------------------------------------
-% Spatial indexing
-% -----------------------------------------------------------------------
-
-@inproceedings{guttman1984,
-  author    = {Guttman, Antonin},
-  title     = {{R-Trees}: A Dynamic Index Structure for Spatial Searching},
-  booktitle = {Proceedings of the 1984 ACM SIGMOD International Conference
-               on Management of Data},
-  year      = {1984},
-  pages     = {47--57},
-  doi       = {10.1145/602259.602266}
-}
-
-@article{bentley1975,
-  author    = {Bentley, Jon Louis},
-  title     = {Multidimensional Binary Search Trees Used for Associative
-               Searching},
-  journal   = {Communications of the ACM},
-  year      = {1975},
-  volume    = {18},
-  number    = {9},
-  pages     = {509--517},
-  doi       = {10.1145/361002.361007}
-}
-
-% -----------------------------------------------------------------------
-% Spatial clustering frameworks
-% -----------------------------------------------------------------------
 
 @article{pedregosa2011sklearn,
-  author    = {Pedregosa, Fabian and Varoquaux, Ga\"{e}l and Gramfort,
-               Alexandre and Michel, Vincent and Thirion, Bertrand and
-               Grisel, Olivier and Blondel, Mathieu and Prettenhofer,
-               Peter and Weiss, Ron and Dubourg, Vincent and Vanderplas,
-               Jake and Passos, Alexandre and Cournapeau, David and
-               Brucher, Matthieu and Perrot, Matthieu and Duchesnay,
-               \'{E}douard},
-  title     = {Scikit-learn: Machine Learning in {Python}},
-  journal   = {Journal of Machine Learning Research},
-  year      = {2011},
-  volume    = {12},
-  pages     = {2825--2830}
-}
-
-@article{rey2007pysal,
-  author    = {Rey, Sergio J. and Anselin, Luc},
-  title     = {{PySAL}: A Python Library of Spatial Analytical Methods},
-  journal   = {The Review of Regional Studies},
-  year      = {2007},
-  volume    = {37},
-  number    = {1},
-  pages     = {5--27}
+author = {Pedregosa, Fabian and Varoquaux, Ga\"{e}l and Gramfort, Alexandre and Michel, Vincent and Thirion, Bertrand and Grisel, Olivier and Blondel, Mathieu and Prettenhofer, Peter and Weiss, Ron and Dubourg, Vincent and Vanderplas, Jake and Passos, Alexandre and Cournapeau, David and Brucher, Matthieu and Perrot, Matthieu and Duchesnay, \'{E}douard},
+title = {Scikit-learn: Machine Learning in Python},
+year = {2011},
+volume = {12},
+issn = {1532-4435},
+journal = {Journal of Machine Learning Research},
+month = nov,
+pages = {2825–2830},
+numpages = {6}
 }
 
 @misc{sklearn_issue23550,
@@ -218,40 +31,15 @@
   note   = {GitHub issue, scikit-learn repository}
 }
 
-% TODO: verify full details for Sadeghi et al. (2025) geo-data science clustering review
-@article{sadeghi2025geodatascience,
-  author    = {Sadeghi, Mahdi and others},
-  title     = {Clustering Methods in Geo-data Science: A Review},
-  journal   = {TODO},
-  year      = {2025},
-  note      = {TODO: verify authors, journal, volume, pages, doi}
+@article{rey2007pysal,
+  author    = {Rey, Sergio J. and Anselin, Luc},
+  title     = {{PySAL}: A Python Library of Spatial Analytical Methods},
+  journal   = {The Review of Regional Studies},
+  year      = {2007},
+  volume    = {37},
+  number    = {1},
+  pages     = {5--27}
 }
-
-% TODO: verify full details for Carvalho et al. (2009) spatial hierarchical clustering
-@article{carvalho2009spatialhclust,
-  author    = {Carvalho, Marilia S\'{a} and others},
-  title     = {Spatial hierarchical clustering of geographic regions},
-  journal   = {TODO},
-  year      = {2009},
-  note      = {TODO: verify authors, journal, volume, pages, doi}
-}
-
-@article{chavent2018clustgeo,
-  author    = {Chavent, Marie and Kuentz-Simonet, Vanessa and Labenne,
-               Amaury and Saracco, J\'{e}r\^{o}me},
-  title     = {{ClustGeo}: an {R} package for hierarchical clustering with
-               spatial constraints},
-  journal   = {Computational Statistics},
-  year      = {2018},
-  volume    = {33},
-  number    = {4},
-  pages     = {1799--1822},
-  doi       = {10.1007/s00180-018-0791-1}
-}
-
-% -----------------------------------------------------------------------
-% GeoNames dataset
-% -----------------------------------------------------------------------
 
 @misc{geonames2025,
   author = {{GeoNames}},
@@ -261,32 +49,493 @@
   note   = {CC~BY~4.0. \texttt{allCountries} dump, accessed 2025}
 }
 
-% -----------------------------------------------------------------------
-% Mining dataset and first application
-% -----------------------------------------------------------------------
-
-@article{maus2026mining,
-  author  = {Maus, Victor},
-  title   = {A data-driven approach to mapping global commodity-specific
-             mining land-use},
-  journal = {Journal of Cleaner Production},
-  year    = {2026},
-  volume  = {540},
-  pages   = {147437},
-  doi     = {10.1016/j.jclepro.2025.147437}
+@article{tobler1970computer,
+  title={A computer movie simulating urban growth in the Detroit region},
+  author={Tobler, Waldo R},
+  journal={Economic geography},
+  volume={46},
+  number={sup1},
+  pages={234--240},
+  year={1970},
+  publisher={Taylor \& Francis}
 }
 
-% -----------------------------------------------------------------------
-% Scientific Python ecosystem
-% -----------------------------------------------------------------------
+@article{otair2016approximate,
+  title={Approximate K-Nearest Neighbour Based Spatial Clustering Using K-D Tree},
+  author={Otair, Mohammed Abdallh},
+  year={2016},
+  month={Feb}
+}
 
-@article{virtanen2020,
-  author    = {Virtanen, Pauli and others},
-  title     = {{SciPy} 1.0: Fundamental Algorithms for Scientific Computing
-               in {Python}},
-  journal   = {Nature Methods},
-  year      = {2020},
-  volume    = {17},
-  pages     = {261--272},
-  doi       = {10.1038/s41592-019-0686-2}
+@article{rohil2014comparative,
+  title={Comparative Analysis of Birch and Cure Hierarchical Clustering Algorithm Using Weka 3.6.9},
+  author={Rohil, Harish},
+  journal={The SIJ Transactions on Computer Science Engineering \& its Applications (CSEA)},
+  volume={2},
+  number={1},
+  year={2014},
+  issn={2321-2381}
+}
+
+@article{chen2024hierarchical,
+  title={Hierarchical Sparse Representation Clustering for High-Dimensional Data Streams},
+  author={Chen, Jie and Mao, Hua and Gou, Yuanbiao and Peng, Xi},
+  year={2024},
+  doi={10.48550/arXiv.2409.04698}
+}
+
+@inproceedings{jin2015incremental,
+  title={Incremental, Distributed Single-Linkage Hierarchical Clustering Algorithm Using MapReduce},
+  author={Jin, Chen and Patwary, Md. Mostofa Ali and Agrawal, Ankit and Hendrix, William and Liao, Wei-keng and Choudhary, Alok},
+  booktitle={23rd High Performance Computing Symposium (HPC 2015)},
+  year={2015}
+}
+
+@article{gagolewski2016genie,
+  title={Genie: A new, fast, and outlier-resistant hierarchical clustering algorithm},
+  author={Gagolewski, Marek and Bartoszuk, Maciej and Cena, Anna},
+  journal={Information Sciences},
+  volume={363},
+  pages={8--23},
+  year={2016},
+  doi={10.1016/j.ins.2016.05.003}
+}
+
+@article{sadeghi2025clustering,
+    title = {Clustering in geo-data science: Navigating uncertainty to select the most reliable method},
+    journal = {Ore Geology Reviews},
+    volume = {181},
+    pages = {106591},
+    year = {2025},
+    issn = {0169-1368},
+    doi = {10.1016/j.oregeorev.2025.106591},
+    author = {Behnam Sadeghi},
+}
+
+@techreport{omohundro1989balltree,
+  title={Five Balltree Construction Algorithms},
+  author={Omohundro, Stephen M},
+  year={1989},
+  institution={International Computer Science Institute},
+  number={TR-89-063}
+}
+
+@article{sadeghi2025kmeans,
+  title={K-Means and K-Medoids are among the most commonly used clustering methods in geo-data science (pyClusterWise)},
+  author={Sadeghi, Behnam},
+  journal={Ore Geology Reviews},
+  volume={181},
+  pages={106591},
+  year={2025},
+  doi={10.1016/j.oregeorev.2025.106591}
+}
+
+@article{nguyen2014sparsehc,
+  title={SparseHC: a memory-efficient online hierarchical clustering algorithm},
+  author={Nguyen, Thuy-Diem and Schmidt, Bertil and Kwoh, Chee-Keong},
+  journal={Procedia Computer Science},
+  volume={29},
+  pages={8--19},
+  year={2014},
+  doi={10.1016/j.procs.2014.05.001}
+}
+
+@article{gagolewski2021genieclust,
+  title={genieclust: Fast and robust hierarchical clustering},
+  author={Gagolewski, Marek},
+  journal={SoftwareX},
+  volume={15},
+  pages={100722},
+  year={2021},
+  doi={10.1016/j.softx.2021.100722},
+  url={https://github.com/gagolews/genieclust}
+}
+
+@article{mcinnes2017hdbscan,
+  title={hdbscan: Hierarchical density based clustering},
+  author={McInnes, L. and Healy, J. and Astels, S.},
+  journal={Journal of Open Source Software},
+  volume={2},
+  number={11},
+  pages={205},
+  year={2017},
+  doi={10.21105/joss.00205}
+}
+
+@misc{scikit_learn_clustering,
+  title={2.3. Clustering — scikit-learn 1.8.0 documentation},
+  author={{scikit-learn developers}}
+}
+
+@inproceedings{ankerst1999optics,
+  title={OPTICS: ordering points to identify the clustering structure},
+  author={Ankerst, Mihael and Breunig, Markus M. and Kriegel, Hans-Peter and Sander, J{\"o}rg},
+  booktitle={SIGMOD '99: Proceedings of the 1999 ACM SIGMOD international conference on Management of data},
+  year={1999},
+  doi={10.1145/304182.304187}
+}
+
+@inproceedings{monath2019scalable,
+  title={Scalable Hierarchical Clustering with Tree Grafting},
+  author={Monath, Nicholas and Kobren, Ari and Krishnamurthy, Akshay and Glass, Michael R. and McCallum, Andrew},
+  booktitle={KDD '19: The 25th ACM SIGKDD Conference on Knowledge Discovery and Data Mining},
+  year={2019},
+  doi={10.1145/3292500.3330929}
+}
+
+@inproceedings{monath2021scalable,
+  title={Scalable Hierarchical Agglomerative Clustering},
+  author={Monath, Nicholas and Dubey, Kumar Avinava and Guruganesh, Guru and Zaheer, Manzil and Ahmed, Amr and McCallum, Andrew and Mergen, Gokhan and Najork, Marc and Terzihan, Mert and Tjanaka, Bryon and Wang, Yuan and Wu, Yuchen},
+  booktitle={KDD '21: Proceedings of the 27th ACM SIGKDD Conference on Knowledge Discovery \& Data Mining},
+  year={2021},
+  doi={10.1145/3447548.3467404}
+}
+
+@inproceedings{wang2021fast,
+  title={Fast Parallel Algorithms for Euclidean Minimum Spanning Tree and Hierarchical Spatial Clustering},
+  author={Wang, Yiqiu and Yu, Shangdi and Gu, Yan and Shun, Julian},
+  booktitle={SIGMOD '21: Proceedings of the 2021 International Conference on Management of Data},
+  year={2021},
+  doi={10.1145/3448016.3457296}
+}
+
+@article{bentley1975quad,
+  title={Multidimensional binary search trees used for associative searching},
+  author={Bentley, J.L.},
+  journal={Communications of the ACM},
+  volume={18},
+  number={9},
+  pages={509--517},
+  year={1975}
+}
+
+@article{mathprog2023,
+  title={A Mathematical Programming Approach to Hierarchical Clustering}
+}
+
+@inproceedings{hendrix2013scalable,
+  title={A Scalable Algorithm for Single-Linkage Hierarchical Clustering on Distributed-Memory Architectures},
+  author={Hendrix, William and Palsetia, Diana and Patwary, Md. Mostofa Ali and Agrawal, Ankit and Liao, Wei-keng and Choudhary, Alok},
+  booktitle={IEEE Symposium on Large Data Analysis and Visualization},
+  year={2013}
+}
+
+@article{lettich2024surprisingly,
+  title={A Surprisingly Simple Method for Distributed Euclidean-Minimum Spanning Tree / Single Linkage Dendrogram Construction from High Dimensional Embeddings via Distance Decomposition},
+  author={Lettich, Richard},
+  year={2024},
+  doi={10.48550/arXiv.2406.01739}
+}
+
+@article{singlelinkageequiv,
+  title={A note on single-linkage equivalence}
+}
+
+@article{yuan2013accelerating,
+  title={Accelerating BIRCH for Clustering Large Scale Streaming Data Using CUDA Dynamic Parallelism},
+  author={Yuan, Bo},
+  year={2013}
+}
+
+@inproceedings{davidson2005agglomerative,
+  title={Agglomerative Hierarchical Clustering with Constraints: Theoretical and Empirical Results},
+  author={Davidson, Ian and Ravi, S. S.},
+  booktitle={Knowledge Discovery in Databases: PKDD 2005},
+  year={2005},
+  doi={10.1007/11564126_11}
+}
+
+@article{gshac2025,
+  title={Algorithmic Optimization and System Design for Geographically Sparse Hierarchical Agglomerative Clustering (GSHAC)}
+}
+
+@article{liu2023efficient,
+  title={An Efficient Algorithm for Distance-based Structural Graph Clustering},
+  author={Liu, Kaixin and Wang, Sibo and Zhang, Yong and Xing, Chunxiao},
+  journal={Proc. ACM Manag. Data},
+  volume={1},
+  number={1},
+  pages={Article 45},
+  year={2023},
+  doi={10.1145/3588725}
+}
+
+@article{ahpine2018efficient,
+  title={An Efficient and Effective Generic Agglomerative Hierarchical Clustering Approach},
+  author={Ah-Pine, Julien},
+  journal={Journal of Machine Learning Research},
+  year={2018}
+}
+
+@article{okkels2024approximate,
+  title={Approximate Single-Linkage Clustering Using Graph-based Indexes: MST-based Approaches and Incremental Searchers},
+  author={Okkels, Camilla Birch and Thordsen, Erik and Aum{\"u}ller, Martin and Zimek, Arthur and Schubert, Erich}
+}
+
+@misc{wikibirch,
+  title={BIRCH - Wikipedia},
+  url={https://en.wikipedia.org/wiki/BIRCH}
+}
+
+@misc{scribdbirch1,
+  title={BIRCH Algorithm | PDF | Cluster Analysis | Theoretical Computer Science - Scribd}
+}
+
+@misc{scribdbirch2,
+  title={BIRCH Clustering Algorithm Overview | PDF - Scribd}
+}
+
+@inproceedings{zhang1996birch,
+  title={BIRCH: An Efficient Data Clustering Method for Very Large Databases},
+  author={Zhang, Tian and Ramakrishnan, Raghu and Livny, Miron},
+  booktitle={SIGMOD},
+  year={1996}
+}
+
+@article{hu2024benchmarking,
+  title={Benchmarking clustering, alignment, and integration methods for spatial transcriptomics},
+  author={Hu, Yunfei and Xie, Manfei and Li, Yikang and Rao, Mingxing and Shen, Wenjun and Luo, Can and Qin, Haoran and Baek, Jihoon and Zhou, Xin Maizie},
+  journal={Genome Biology},
+  volume={25},
+  pages={212},
+  year={2024},
+  doi={10.1186/s13059-024-03361-0}
+}
+
+@misc{kingsfordcmsc,
+  title={CMSC 451: Minimum Spanning Trees \& Clustering},
+  author={Kingsford, Carl}
+}
+
+@inproceedings{guha1998cure,
+  title={CURE: An Efficient Clustering Algorithm for Large Databases},
+  author={Guha, Sudipto and Rastogi, R. and Shim, K.},
+  booktitle={SIGMOD '98},
+  year={1998}
+}
+
+@article{gagolewski2024clustering,
+  title={Clustering with Minimum Spanning Trees: How Good Can It Be?},
+  author={Gagolewski, Marek and Cena, Anna and Bartoszuk, Maciej and Brzozowski, {\L}ukasz},
+  journal={Journal of Classification},
+  year={2024},
+  doi={10.1007/s00357-024-09483-1}
+}
+
+@article{wani2024comprehensive,
+  title={Comprehensive analysis of clustering algorithms: exploring limitations and innovative solutions},
+  author={Wani, Aasim Ayaz},
+  journal={PeerJ Comput Sci},
+  volume={10},
+  pages={e2286},
+  year={2024},
+  doi={10.7717/peerj-cs.2286}
+}
+
+@article{jin2013disc,
+  title={DiSC: A Distributed Single-linkage Hierarchical Clustering Algorithm using MapReduce},
+  author={Jin, Chen and Patwary, Md. Mostofa Ali and Hendrix, William and Agrawal, Ankit},
+  year={2013}
+}
+
+@article{efficienthighsim2025,
+  title={Efficient Identification of High Similarity Clusters in Polygon Datasets - arXiv}
+}
+
+@article{loewenstein2008efficient,
+  title={Efficient algorithms for accurate hierarchical clustering of huge datasets: tackling the entire protein space},
+  author={Loewenstein, Yaniv and Portugaly, Elon and Fromer, Menachem and Linial, Michal},
+  journal={Bioinformatics},
+  volume={24},
+  number={13},
+  pages={i41--i49},
+  year={2008},
+  doi={10.1093/bioinformatics/btn174}
+}
+
+@inproceedings{guo2010exact,
+  title={Exact Algorithms and Experiments for Hierarchical Tree Clustering},
+  author={Guo, Jiong and Hartung, Sepp and Komusiewicz, Christian and Niedermeier, Rolf and Uhlmann, Johannes},
+  booktitle={AAAI},
+  year={2010}
+}
+
+@article{almansoori2024fast,
+  title={Fast and Memory-Efficient Approximate Minimum Spanning Tree Generation for Large Datasets},
+  author={Almansoori, Mahmood K. M. and Meszaros, Andras and Telek, Miklos},
+  journal={Arabian Journal for Science and Engineering},
+  year={2024},
+  doi={10.1007/s13369-024-08974-y}
+}
+
+@article{nwadiugwu2020gene,
+  title={Gene-Based Clustering Algorithms: Comparison Between Denclue, Fuzzy-C, and BIRCH},
+  author={Nwadiugwu, Martin C},
+  journal={Bioinform Biol Insights},
+  volume={14},
+  year={2020},
+  doi={10.1177/1177932220909851}
+}
+
+@article{gower1969minimum,
+  title={Minimum Spanning Trees and Single Linkage Cluster Analysis},
+  author={Gower, J. C. and Ross, G. J. S.},
+  journal={Journal of the Royal Statistical Society. Series C (Applied Statistics)},
+  volume={18},
+  number={1},
+  pages={54--64},
+  year={1969},
+  doi={10.2307/2346439}
+}
+
+@article{hacgraph2021,
+  title={Hierarchical Agglomerative Graph Clustering in Nearly-Linear Time}
+}
+
+@article{moseley2020hierarchical,
+  title={Hierarchical Clustering in General Metric Spaces using Approximate Nearest Neighbors},
+  author={Moseley, Benjamin and Vassilvitskii, Sergei and Wang, Yuyan}
+}
+
+@misc{wikihc,
+  title={Hierarchical clustering - Wikipedia},
+  url={https://en.wikipedia.org/wiki/Hierarchical_clustering}
+}
+
+@article{xie2021hierarchical,
+  title={Hierarchical clustering by aggregating representatives in sub-minimum-spanning-trees},
+  author={Xie, Wen-Bo and Liu, Zhen and Srivastava, Jaideep}
+}
+
+@misc{scikithc,
+  title={Hierarchical clustering with and without structure - Scikit-learn}
+}
+
+@article{hcmaxdensity2024,
+  title={Hierarchical clustering with maximum density paths and mixture models - arXiv}
+}
+
+@article{carpio2025hierarchical,
+  title={Hierarchical topological clustering},
+  author={Carpio, Ana and Duro, Gema},
+  year={2025},
+  doi={10.48550/arXiv.2601.00892}
+}
+
+@article{ennis2013high,
+  title={High-level geospatial information discovery and fusion for geocoded multimedia},
+  author={Ennis, Andrew and Chen, Liming and Nugent, Chris D. and Ioannidis, George and Stan, Alexandru},
+  journal={International Journal of Pervasive Computing and Communications},
+  volume={9},
+  number={4},
+  pages={367--382},
+  year={2013},
+  doi={10.1108/IJPCC-09-2013-0026}
+}
+
+@inproceedings{wang2015incorporating,
+  title={Incorporating World Knowledge to Document Clustering via Heterogeneous Information Networks},
+  author={Wang, Chenguang and Song, Yangqiu and El-Kishky, Ahmed and Roth, Dan and Zhang, Ming and Han, Jiawei},
+  booktitle={KDD},
+  year={2015},
+  doi={10.1145/2783258.2783374}
+}
+
+@article{jupyterscatter2024,
+  title={Jupyter Scatter: Interactive Exploration of Large-Scale Datasets - arXiv}
+}
+
+@misc{wikimst,
+  title={Minimum spanning tree - Wikipedia},
+  url={https://en.wikipedia.org/wiki/Minimum_spanning_tree}
+}
+
+@article{optparmst2025,
+  title={Optimal Parallel Algorithms for Dendrogram Computation and Single-Linkage Clustering}
+}
+
+@article{parknn2013,
+  title={Parallel k Nearest Neighbor Graph Construction Using Tree-Based Data Structures}
+}
+
+@article{dhapola2022scarf,
+  title={Scarf enables a highly memory-efficient analysis of large-scale single-cell genomics data},
+  author={Dhapola, Parashar and Rodhe, Johan and Karlsson, G{\"o}ran},
+  journal={Nature Communications},
+  volume={13},
+  pages={4616},
+  year={2022},
+  doi={10.1038/s41467-022-32097-3}
+}
+
+@article{scikitnet2020,
+  title={Scikit-network: Graph Analysis in Python}
+}
+
+@misc{wikisinglelinkage,
+  title={Single-linkage clustering - Wikipedia},
+  url={https://en.wikipedia.org/wiki/Single-linkage_clustering}
+}
+
+@article{hu2021threshold,
+  title={Threshold-Based Hierarchical Clustering for Person Re-Identification},
+  author={Hu, Minhui and Zeng, Kaiwei and Wang, Yaohua and Guo, Yang},
+  journal={Entropy (Basel)},
+  volume={23},
+  number={5},
+  pages={522},
+  year={2021},
+  doi={10.3390/e23050522}
+}
+
+@article{nolet2023cuslink,
+  title={cuSLINK: Single-linkage Agglomerative Clustering on the GPU},
+  author={Nolet, Corey J. and Gala, Divye and Fender, Alex and Doijade, Mahesh},
+  year={2023},
+  doi={10.48550/arXiv.2306.16354}
+}
+
+@misc{fastcluster,
+  title={fastcluster: Fast Hierarchical, Agglomerative Clustering Routines for R and Python}
+}
+
+@article{maus2026data,
+  title={A data-driven approach to mapping global commodity-specific mining land-use},
+  author={Maus, Victor},
+  journal={Journal of Cleaner Production},
+  volume={540},
+  pages={147437},
+  year={2026},
+  doi={10.1016/j.jclepro.2025.147437}
+}
+
+@article{chavent2018clustgeo,
+  title={ClustGeo: an R package for hierarchical clustering with spatial constraints},
+  author={Chavent, Marie and Kuentz-Simonet, Vanessa and Labenne, Amaury and Saracco, J{\'e}r{\^o}me},
+  journal={Comput Stat},
+  volume={33},
+  pages={1799--1822},
+  year={2018},
+  doi={10.1007/s00180-018-0791-1}
+}
+
+@article{sibson1973slink,
+  title={SLINK: An optimally efficient algorithm for the single-link cluster method},
+  author={Sibson, R.},
+  journal={The Computer Journal},
+  volume={16},
+  number={1},
+  pages={30--34},
+  year={1973},
+  doi={10.1093/comjnl/16.1.30}
+}
+
+@article{mullner2013fastcluster,
+  title={fastcluster: Fast Hierarchical, Agglomerative Clustering in R and Python},
+  author={M{\"u}llner, Daniel},
+  journal={Journal of Statistical Software},
+  volume={53},
+  number={9},
+  year={2013},
+  doi={10.18637/jss.v053.i09}
 }
