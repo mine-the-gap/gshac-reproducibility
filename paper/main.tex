@@ -162,7 +162,7 @@ geographic distance graph in $\mathcal{O}(n(\log n + k))$ time, where $k$ is the
   
   \item Empirical evaluation at four datasets: a synthetic dataset with (\(n\) up to \(100{,}000\)), the Iris dataset, and two real-world sets, a mining dataset (\(n = 261{,}073\)) \cite{maus2026data} and location names from GeoNames (\(n = 2{,}000{,}000\)) \cite{geonames2025}.
 
-  \item An open-source Python implementation with a scikit-learn-compatible \texttt{SpatialAgglomerativeClustering} estimator \url{https://github.com/mine-the-gap/gshac}.
+  \item An open-source Python implementation with a scikit-learn-compatible \texttt{SparseAgglomerativeClustering} estimator \url{https://github.com/mine-the-gap/gshac}.
 
 \end{enumerate}
 
@@ -277,11 +277,13 @@ Algorithm~\ref{alg:main} has four phases: (i)~spatial index construction, (ii)~c
     \State $\mathbf{D}_k \leftarrow$ dense sub-matrix of $\mathbf{S}$ for $\mathcal{C}_k$
     \State $\Delta_k \leftarrow \textsc{hclust}(\mathbf{D}_k,\, \ell)$
       \Comment{standard HAC}
+    \State $m_k \leftarrow 0$
     \For{$h \in H$}
-      \State $\mathbf{c}^{(h)}[\mathcal{C}_k] \leftarrow
-        g + \textsc{CutTree}(\Delta_k, h)$
+      \State $\boldsymbol{\ell}_h \leftarrow \textsc{CutTree}(\Delta_k, h)$
+      \State $\mathbf{c}^{(h)}[\mathcal{C}_k] \leftarrow g + \boldsymbol{\ell}_h$
+      \State $m_k \leftarrow \max(m_k,\, \max \boldsymbol{\ell}_h)$
     \EndFor
-    \State $g \leftarrow g + |\mathcal{C}_k|$
+    \State $g \leftarrow g + m_k$
   \EndFor
   \State \textbf{return} $\{\mathbf{c}^{(h)}\}_{h \in H}$
 \end{algorithmic}
@@ -374,10 +376,10 @@ The implementation accepts input coordinates as a numeric \((n, 2)\) array --- \
 
 \paragraph{Two HAC paths.}
 \begin{sloppypar}
-For \emph{single linkage}, the system computes \texttt{scipy.sparse.\allowbreak csgraph.\allowbreak minimum\_\allowbreak spanning\_tree} on each component's sparse sub-matrix, then constructs the linkage matrix~\(Z\) via a union-find pass over the \(n_k - 1\) MST edges. This path is \(\Onotation{m_k \log m_k}\) time and \(\Onotation{n_k + m_k}\) memory~--- \emph{no dense matrix is formed}, regardless of component size. The resulting \(Z\) matrix is a standard scipy linkage matrix, supporting \texttt{fcluster} at any cut height \(h \le \hmax\) and full dendrogram visualisation. For \emph{other linkage methods} (complete, average, Ward): the dense sub-matrix is extracted per component via \texttt{scipy.spatial.\allowbreak distance.\allowbreak squareform} and passed to \texttt{scipy.cluster.\allowbreak hierarchy.\allowbreak linkage}.
+For \emph{single linkage}, the system computes \texttt{scipy.sparse.\allowbreak csgraph.\allowbreak minimum\_\allowbreak spanning\_tree} on each component's sparse sub-matrix, then constructs the linkage matrix~\(Z\) via a union-find pass over the \(n_k - 1\) MST edges. This path is \(\Onotation{m_k \log m_k}\) time and \(\Onotation{n_k + m_k}\) memory~--- \emph{no dense matrix is formed}, regardless of component size. The resulting \(Z\) matrix is a standard scipy linkage matrix, supporting \texttt{fcluster} at any cut height \(h \le \hmax\) and full dendrogram visualisation. For \emph{other linkage methods} (complete, average, Ward): the dense sub-matrix is extracted per component via \texttt{scipy.spatial.\allowbreak distance.\allowbreak squareform} and passed to \texttt{fastcluster.\allowbreak linkage}~\cite{mullner2013fastcluster}, with \texttt{scipy.cluster.\allowbreak hierarchy.\allowbreak linkage} as a fallback when fastcluster is unavailable.
 \end{sloppypar}
 
-Only the orchestration layer (component iteration, label assignment) is pure Python; all spatial queries, matrix operations, and HAC computations are C-backed.
+Only the orchestration layer (component iteration, label assignment) is pure Python; all spatial queries, matrix operations, and HAC computations are C-backed --- via scipy/sklearn libraries for spatial indexing and matrix operations, and via a dedicated C extension (\texttt{\_gshac.so}) that implements union-find linkage construction over MST edges, haversine distance computation, and batch threshold-based dendrogram cutting with GIL release. A pure-Python fallback is used when the C extension is not built.
 
 \paragraph{scikit-learn API.}
 \begin{sloppypar}
@@ -417,9 +419,9 @@ Clustered point clouds from a Gaussian mixture model: \(C\) centers placed unifo
   \label{fig:scenarios}
 \end{figure*}
 
-\paragraph{Baselines and comparisons.} (i)~Dense baseline: complete \(\Onotation{n^2}\) matrix via \texttt{scipy\allowbreak .spatial\allowbreak .distance\allowbreak .cdist}\allowbreak + \allowbreak \texttt{fastcluster.\allowbreak link \allowbreak age} \cite{mullner2013fastcluster}, the fastest available dense HAC implementation for Python. (ii)~scikit-learn \texttt{AgglomerativeClustering} with sparse \texttt{connectiv \allowbreak ity}~\cite{pedregosa2011sklearn} (single linkage only;\footnote{scikit-learn carries a documented bug (issue \#23550~\cite{sklearn_issue23550}) causing incorrect results for complete/average linkage with \texttt{distance\_threshold} and sparse connectivity.}). (iii)~PySAL \texttt{DistanceBand}~\cite{rey2007pysal} (graph construction only). (iv)~\texttt{sklearn.cluster.HDBSCAN} v1.8~\cite{mcinnes2017hdbscan} (scope comparison; non-equivalent outputs).
+\paragraph{Baselines and comparisons.} (i)~Dense baseline: complete \(\Onotation{n^2}\) matrix via \texttt{scipy\allowbreak .spatial\allowbreak .distance\allowbreak .cdist} for Euclidean (or a manual nested loop for haversine, since \texttt{cdist} lacks a haversine kernel) followed by \texttt{fastcluster.\allowbreak linkage} \cite{mullner2013fastcluster}, the fastest available dense HAC implementation for Python. Dense haversine baselines for the mining and GeoNames datasets are reported analytically because the corresponding matrices exceed available RAM. (ii)~scikit-learn \texttt{AgglomerativeClustering} with sparse \texttt{connectiv \allowbreak ity}~\cite{pedregosa2011sklearn} (single linkage only;\footnote{scikit-learn carries a documented bug (issue \#23550~\cite{sklearn_issue23550}) causing incorrect results for complete/average linkage with \texttt{distance\_threshold} and sparse connectivity.}). (iii)~PySAL \texttt{DistanceBand}~\cite{rey2007pysal} (graph construction only). (iv)~\texttt{sklearn.cluster.HDBSCAN} v1.8~\cite{mcinnes2017hdbscan} (scope comparison; non-equivalent outputs).
 
-\paragraph{Metrics and hardware.} Wall time (seconds) and peak memory (MiB) via \texttt{tracemalloc}, averaged over \(r = 5\) repetitions. Correctness: Adjusted Rand Index (ARI) and cluster-count agreement at each cut height. All experiments on an AMD Ryzen~7 PRO 8840U laptop (8 cores, 3.3--5.1\,GHz), 30\,GiB DDR5, Ubuntu Linux (kernel 6.17, Python 3.12.3).
+\paragraph{Metrics and hardware.} Wall time (seconds) and peak memory (MiB) via \texttt{tracemalloc}, averaged over \(r = 5\) repetitions. Correctness: Adjusted Rand Index (ARI) and cluster-count agreement at each cut height. All experiments on an AMD Ryzen~7 PRO 8840U laptop (8 cores, 3.3--5.1\,GHz), 30\,GB DDR5, Ubuntu Linux (kernel 6.17, Python 3.12.3).
 
 %=======================================================================
 \section{Results}
@@ -474,7 +476,7 @@ To demonstrate this, we run a separate experiment with uniformly distributed poi
   \item \textbf{Speedup grows monotonically with~\(n\)}:
     at \(n\!=\!25\text{K}\), GSHAC is \(17.2\times\) faster and
     \(102\times\) more memory-efficient than fastcluster.
-  \item At \(n\!=\!500\text{K}\), GSHAC uses 1.4\,GB; the dense
+  \item At \(n\!=\!500\text{K}\), GSHAC uses 1.4\,GiB; the dense
     matrix would require \(\approx\!2\,\text{TiB}\).
 \end{itemize}
 
@@ -590,7 +592,7 @@ Figure~\ref{fig:limits} projects the constant-\(\bar{k}\) scaling behaviour to l
 \section{Conclusion}
 \label{sec:conclusion}
 
-We presented a system for scalable exact hierarchical clustering of spatial data that replaces the \(\Onotation{n^2}\) dense distance matrix with an \(\Onotation{nk}\) sparse geographic distance graph built via spatial indexing. We proved exactness for all standard linkage methods, and provided a \texttt{SpatialAgglomerativeClustering} estimator with a scikit-learn-compatible API. Applied to a global mining inventory (\(n = 261{,}073\))~\cite{maus2026data}, the system completes in 12\,s with 109\,MiB peak HAC memory; on a 2M-point GeoNames sample, all tested thresholds complete in under 3\,minutes. To our knowledge, these are the largest demonstrations of exact geographic HAC on a single workstation.
+We presented a system for scalable exact hierarchical clustering of spatial data that replaces the \(\Onotation{n^2}\) dense distance matrix with an \(\Onotation{nk}\) sparse geographic distance graph built via spatial indexing. We proved exactness for all standard linkage methods, and provided a \texttt{SparseAgglomerativeClustering} estimator with a scikit-learn-compatible API. Applied to a global mining inventory (\(n = 261{,}073\))~\cite{maus2026data}, the system completes in 12\,s with 109\,MiB peak HAC memory; on a 2M-point GeoNames sample, all tested thresholds complete in under 3\,minutes. To our knowledge, these are the largest demonstrations of exact geographic HAC on a single workstation.
 
 Future work includes: (i)~adapting the system for streaming settings where features arrive incrementally; (ii)~extending to parallel execution for datasets beyond single-machine memory; (iii)~applying the sparse geographic graph as a general-purpose input to other distance-based spatial algorithms; and (iv)~developing memory-efficient HAC paths for complete, average, and Ward linkage analogous to the MST-based single-linkage optimisation.
 
