@@ -346,7 +346,7 @@ def make_tab_realworld():
     content = f"""\\begin{{table}}[t]
 \\caption{{Dense vs.\\ sparse for the global mining dataset
   (\\(n = {fmt_int(n)}\\), \\(\\hmax = 20\\)\\,km, haversine, AMD Ryzen~7 PRO
-  8840U, 30\\,GiB DDR5).
+  8840U, 30\\,GB DDR5).
   Dense figures are analytical; sparse figures are measured.}}
 \\label{{tab:realworld}}
 \\small
@@ -553,7 +553,7 @@ def make_tab_hdbscan():
 
     body = "\n".join(tex_lines)
 
-    content = f"""\\begin{{table}}[t]
+    content = f"""\\begin{{table}}[!h]
 \\caption{{Resource comparison: \\texttt{{sklearn}} HDBSCAN vs.\\ GSHAC
   on the mining dataset (\\(n = {fmt_int(n)}\\), haversine).
   Non-equivalent outputs; illustrates resource profiles only.}}
@@ -599,9 +599,9 @@ def make_tab_geonames_full():
             return "---"
         mb = float(ex[h]["sparse_mb"])
         if mb >= 1000:
-            s = f"{mb / 1000:.1f}\\,GiB"
+            s = f"{mb / 1000:.1f}\\,GB"
         else:
-            s = f"{int(round(mb))}\\,MiB"
+            s = f"{int(round(mb))}\\,MB"
         return f"\\(\\sim\\){s}\\(^{{*}}\\)" if h == 5000 else s
 
     def _largest(h):
@@ -621,8 +621,8 @@ def make_tab_geonames_full():
             return "---"
         m = float(ex[h]["graph_mem_mib"])
         if h == 5000:
-            return f"\\(>\\)30\\,GiB\\(^{{*}}\\)"
-        return f"{m / 1024:.1f}\\,GiB"
+            return f"\\(>\\)30\\,GB\\(^{{*}}\\)"
+        return f"{m / 1024:.1f}\\,GB"
 
     def _hac_time_est(h):
         if h not in geo:
@@ -634,11 +634,11 @@ def make_tab_geonames_full():
         if h not in geo:
             return "---"
         est = float(geo[h]["hac_mem_mib"]) * scale
-        return f"\\(\\sim\\){est / 1024:.1f}\\,GiB"
+        return f"\\(\\sim\\){est / 1024:.1f}\\,GB"
 
     def _total_est(h):
         if h == 5000:
-            return "\\textbf{needs 64\\,GiB}"
+            return "\\textbf{needs 64\\,GB}"
         if h in ex and h in geo:
             g_t = float(ex[h]["graph_time_s"])
             h_t = float(geo[h]["hac_time_s"]) * scale
@@ -669,7 +669,7 @@ def make_tab_geonames_full():
 \\caption{{Estimated resources for full GeoNames (\\(n = {fmt_int(n_full)}\\)).
   Graph rows: measured on full dataset (graph construction only).
   HAC rows: linearly extrapolated from 2M sample.
-  Hardware: AMD Ryzen~7 PRO 8840U, 30\\,GiB DDR5.}}
+  Hardware: AMD Ryzen~7 PRO 8840U, 30\\,GB DDR5.}}
 \\label{{tab:geonames_full}}
 \\small
 \\begin{{tabular}}{{lrrrr}}
@@ -678,7 +678,7 @@ def make_tab_geonames_full():
 \\midrule
 {body}
 \\bottomrule
-\\multicolumn{{5}}{{l}}{{\\footnotesize \\(^{{*}}\\)Extrapolated; graph exceeded 30\\,GiB RAM at \\(\\hmax = 5\\)\\,km.}} \\\\
+\\multicolumn{{5}}{{l}}{{\\footnotesize \\(^{{*}}\\)Extrapolated; graph exceeded 30\\,GB RAM at \\(\\hmax = 5\\)\\,km.}} \\\\
 \\end{{tabular}}
 \\end{{table}}"""
 

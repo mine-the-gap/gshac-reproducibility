@@ -2,7 +2,7 @@
 benchmark_geonames.py
 
 Spatially stratified 2M-point sample from GeoNames allCountries
-(n_full ~ 13.4M), benchmarked across h_max = 500 m / 1 km / 2 km / 5 km.
+(n_full ~ 13.4M), benchmarked across h_max = 1 km / 2 km / 5 km / 10 km.
 
 Phases:
   1. Parse GeoNames (allCountries.txt must exist in data/)
@@ -31,7 +31,7 @@ TXT_PATH    = DATA_DIR / "allCountries.txt"
 
 N_SAMPLE     = 2_000_000
 RANDOM_SEED  = 42
-H_MAX_VALS   = [500, 1_000, 2_000, 5_000]   # metres
+H_MAX_VALS   = [1_000, 2_000, 5_000, 10_000]   # metres
 H_CUT_FRAC   = 1.0   # h_cut = h_max (single cut per run)
 MAX_SUBMAT_GB = 20.0  # skip HAC if largest-component sub-matrix exceeds this
 
