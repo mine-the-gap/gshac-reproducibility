@@ -81,7 +81,7 @@
 
 % -----------------------------------------------------------------------
 \begin{abstract}
-Exact hierarchical agglomerative clustering (HAC) of large spatial datasets is limited in practice by the \(\Onotation{n^2}\) time and memory required for the full pairwise distance matrix. We present \emph{GSHAC} (Geographically Sparse Hierarchical Agglomerative Clustering), a system that makes exact HAC for geographic data feasible at scales of millions of features on a commodity workstation. We replace the distance matrix with a sparse geographic distance graph containing only pairs within a user-specified geodesic bound~\(\hmax\). The graph is constructed in \(\Onotation{n \cdot k}\) time via spatial indexing (KD-tree or Ball-tree), where~\(k\) is the mean number of neighbors within~\(\hmax\), and its connected components define independent subproblems for standard HAC. We prove that the resulting cluster assignments are \emph{exact} when compared to those from a dense matrix for all standard linkage methods at any cut height \(h \le \hmax\). For single linkage, an MST-based path avoids dense sub-matrices entirely, keeping memory in \(\Onotation{n_k + m_k}\) per component regardless of component size. Applied to a global mining inventory (\(n = 261{,}073\) features)~\cite{maus2026data}, the system completes in 12\,s on a commodity laptop (109\,MiB peak HAC memory; \(121\,\text{MiB}\) graph storage) whereas the dense baseline would require \(\approx\!545\,\text{GiB}\), unfeasible on the laptop. On a 2-million-point sample of GeoNames (global named places), four tested thresholds completed in under 3\,minutes each with peak memory under 3\,\text{GiB}. To our knowledge, these are the largest demonstrations of exact HAC on geographic data on a single workstation, opening the door for applied researchers and practitioners to analyze geographic data with millions of features using substantially reduced resources. We provide an implementation compatible with Python's scikit-learn that enables direct integration into GIS workflows.
+Exact hierarchical agglomerative clustering (HAC) of large spatial datasets is limited in practice by the \(\Onotation{n^2}\) time and memory required for the full pairwise distance matrix. We present \emph{GSHAC} (Geographically Sparse Hierarchical Agglomerative Clustering), a system that makes exact HAC for geographic data feasible at scales of millions of features on a commodity workstation. We replace the distance matrix with a sparse geographic distance graph containing only pairs within a user-specified geodesic bound~\(\hmax\). The graph is constructed in \(\Onotation{n \cdot k}\) time via spatial indexing (KD-tree or Ball-tree), where~\(k\) is the mean number of neighbors within~\(\hmax\), and its connected components define independent subproblems for standard HAC. We prove that the resulting cluster assignments are \emph{exact} when compared to those from a dense matrix for all standard linkage methods at any cut height \(h \le \hmax\). For single linkage, an MST-based path avoids dense sub-matrices entirely, keeping memory in \(\Onotation{n_k + m_k}\) per component regardless of component size. Applied to a global mining inventory (\(n = 261{,}073\) features)~\cite{maus2026data}, the system completes in 12\,s on a commodity laptop (109\,MiB peak HAC memory; \(121\,\text{MB}\) graph storage) whereas the dense baseline would require \(\approx\!545\,\text{GB}\), unfeasible on the laptop. On a 2-million-point sample of GeoNames (global named places), four tested thresholds completed in under 3\,minutes each with peak memory under 3\,\text{GB}. To our knowledge, these are the largest demonstrations of exact HAC on geographic data on a single workstation, opening the door for applied researchers and practitioners to analyze geographic data with millions of features using substantially reduced resources. We provide an implementation compatible with Python's scikit-learn that enables direct integration into GIS workflows.
 \end{abstract}
 
 % CCS concepts
@@ -148,12 +148,13 @@ Hierarchical Agglomerative Clustering (HAC) is a fundamental unsupervised learni
 
 Despite its analytical utility, standard HAC suffers from severe scalability bottlenecks. Constructing the hierarchical dendrogram traditionally requires calculating and storing a full pairwise distance matrix, which imposes an \(\mathcal{O}(n^2)\) memory footprint and an \(\mathcal{O}(n^3)\) or \(\mathcal{O}(n^2log~n)\) time complexity \cite{nguyen2014sparsehc, gagolewski2016genie}. This quadratic wall renders exact HAC computationally infeasible for large modern datasets on commodity hardware \cite{hendrix2013scalable}.
 
-To overcome these limitations and allow scalable applications, a variety of approaches have been proposed across different fields. Methods such as BIRCH and CURE utilize data summarization (e.g., CF-trees) or random sampling with multiple representatives to approximate the hierarchy in a single or a few passes \cite{zhang1996birch, guha1998cure}. For single-linkage clustering, distributed and parallel computing architectures, such as MapReduce and MPI, have been leveraged to partition the Minimum Spanning Tree (MST) computation across multiple nodes \cite{jin2015incremental, hendrix2013scalable}. In general metric spaces, algorithms have incorporated Approximate Nearest Neighbor (ANN) data structures and Locality Sensitive Hashing (LSH) to achieve subquadratic runtimes by trading exactness for speed \cite{moseley2020hierarchical}. Additionally, memory-efficient online algorithms like SparseHC process distance matrices in a chunk-by-chunk manner, exploiting sparsity to reduce memory consumption for biological data \cite{nguyen2014sparsehc} but require a pre-computed sparse matrix.
+To overcome these limitations and allow scalable applications, a variety of approaches have been proposed across different fields. Methods such as BIRCH and CURE utilize data summarization (e.g., CF-trees) or random sampling with multiple representatives to approximate the hierarchy in a single or a few passes \cite{zhang1996birch, guha1998cure}. For single-linkage clustering, distributed and parallel computing architectures, such as MapReduce and Message Passing Interface (MPI), have been leveraged to partition the Minimum Spanning Tree (MST) computation across multiple nodes \cite{jin2015incremental, hendrix2013scalable}. In general metric spaces, algorithms have incorporated Approximate Nearest Neighbor (ANN) data structures and Locality Sensitive Hashing (LSH) to achieve subquadratic runtimes by trading exactness for speed \cite{moseley2020hierarchical}. Additionally, memory-efficient online algorithms like SparseHC process distance matrices in a chunk-by-chunk manner, exploiting sparsity to reduce memory consumption for biological data \cite{nguyen2014sparsehc} but require a pre-computed sparse matrix.
 
 For geographic data specifically, variants of HAC have been effectively applied, such as the spatial-constraints Ward-like algorithm proposed in \cite{chavent2018clustgeo}. Furthermore, Maus (2026) recently proposed a graph-indexing method to compute sparse pairwise distances for HAC suitable for large spatial datasets \cite{maus2026data}. By applying a maximum spatial distance threshold, the method partitions geographic features into independent groups that can be computed efficiently with low memory requirements \cite{maus2026data}. However, this work has a strict application focus on mining land use and does not provide formal mathematical proofs that the approach generalizes across different standard linkage methods, nor does it prove that it strictly reduces computing time and memory bounds.
 
-In this paper, we present GSHAC (Geographically Sparse Hierarchical Agglomerative Clustering), a system that makes exact HAC for multiple linkage methods feasible for millions of geographic features on commodity hardware. The system leverages the First Law of Geography (``Everything is related to everything else, but near things are more related than distant things'' \cite{tobler1970computer}), which implies in practice that, in spatial and geographic contexts, features separated by vast geographic distances are highly unlikely to merge until the very final stages of the hierarchical tree. Therefore, rather than computing a dense distance matrix, GSHAC leverages spatial indexing (e.g. KD-trees \cite{bentley1975quad} and BallTree \cite{omohundro1989balltree}) to construct a sparse geographic distance graph in \(\mathcal{O}(n \cdot k)\) time,
-where \(k\) is the mean number of neighbors within a user-specified geodesic threshold \(h_{max}\). We formally prove that the connected components of this sparse graph constitute independent subproblems, guaranteeing that the resulting cluster assignments are strictly exact for all standard linkage methods at any cut height \(h \le h_{max}\). We make the following contributions:
+In this paper, we present GSHAC (Geographically Sparse Hierarchical Agglomerative Clustering), a system that makes exact HAC for multiple linkage methods feasible for millions of geographic features on commodity hardware. The system leverages the First Law of Geography (``Everything is related to everything else, but near things are more related than distant things''~\cite{tobler1970computer}), which implies that, in spatial and geographic contexts, features separated by vast geographic distances are highly unlikely to merge until the very final stages of 
+the hierarchical tree. Therefore, rather than computing a dense distance matrix, GSHAC leverages spatial indexing (e.g., KD-trees~\cite{bentley1975quad} and Ball Trees~\cite{omohundro1989balltree}) to construct a sparse 
+geographic distance graph in $\mathcal{O}(n(\log n + k))$ time, where $k$ is the mean number of neighbors within a user-specified geodesic threshold $h_{\max}$. In practice, when the sparsity assumption holds, that is, when $k \gg \log n$, this reduces to $\mathcal{O}(n \cdot k)$, which remains linear in $n$ for fixed $k$. We formally prove that the connected components of this sparse graph constitute independent subproblems, guaranteeing that the resulting cluster assignments are strictly exact for all standard linkage methods at any cut height $h \leq h_{\max}$. We make the following contributions:
 
 \begin{enumerate}
 
@@ -169,11 +170,11 @@ where \(k\) is the mean number of neighbors within a user-specified geodesic thr
 
 \textbf{Exact HAC and Classical Bottlenecks} 
 
-Standard implementations of HAC, such as the widely used \texttt{fastcluster} package for R and Python \cite{mullner2013fastcluster}, provide highly optimized routines for standard linkage criteria (e.g., single, complete, average, Ward). However, these exact algorithms are still fundamentally limited by $\mathcal{O}(N^2)$ memory requirements when processing dense dissimilarity matrices \cite{mullner2013fastcluster}. In geo-data science, frameworks such as ClustGeo \cite{chavent2018clustgeo} incorporate spatial constraints by combining a feature distance matrix with a geographic distance matrix using a mixing parameter. While effective for identifying spatially contiguous clusters, these methods retain the $\mathcal{O}(N^2)$ cost of dense matrix operations, limiting their applicability to smaller regional datasets \cite{chavent2018clustgeo}.
+Standard implementations of HAC, such as the widely used \texttt{fastcluster} package for R and Python \cite{mullner2013fastcluster}, provide highly optimized routines for standard linkage criteria (e.g., single, complete, average, Ward). However, these exact algorithms are still fundamentally limited by $\mathcal{O}(n^2)$ memory requirements when processing dense dissimilarity matrices \cite{mullner2013fastcluster}. In geo-data science, frameworks such as ClustGeo \cite{chavent2018clustgeo} incorporate spatial constraints by combining a feature distance matrix with a geographic distance matrix using a mixing parameter. While effective for identifying spatially contiguous clusters, these methods retain the $\mathcal{O}(n^2)$ cost of dense matrix operations, limiting their applicability to smaller regional datasets \cite{chavent2018clustgeo}.
 
 \textbf{Single Linkage and Minimum Spanning Trees}
 
-The mathematical equivalence between single-linkage clustering and the Minimum Spanning Tree (MST) has long been established \cite{gower1969minimum}. Algorithms such as SLINK compute the single-linkage hierarchy in optimal $\mathcal{O}(N^2)$ time and $\mathcal{O}(N)$ space \cite{sibson1973slink}. Recent advances have introduced fast parallel algorithms for Euclidean MSTs (EMST) using Well-Separated Pair Decompositions and KD-trees \cite{wang2021fast}. While these parallel methods can cluster tens of millions of points efficiently, they generally require distributed systems or massive multi-core hardware instances with hundreds of gigabytes of RAM \cite{wang2021fast}. 
+The mathematical equivalence between single-linkage clustering and the Minimum Spanning Tree (MST) has long been established \cite{gower1969minimum}. Algorithms such as SLINK compute the single-linkage hierarchy in optimal $\mathcal{O}(n^2)$ time and $\mathcal{O}(n)$ space \cite{sibson1973slink}. Recent advances have introduced fast parallel algorithms for Euclidean MSTs (EMST) using Well-Separated Pair Decompositions and KD-trees \cite{wang2021fast}. While these parallel methods can cluster tens of millions of points efficiently, they generally require distributed systems or massive multi-core hardware instances with hundreds of gigabytes of RAM \cite{wang2021fast}. 
 
 \textbf{Sparse and Cutoff-Based Clustering}
 
@@ -280,7 +281,7 @@ Algorithm~\ref{alg:main} has four phases: (i)~spatial index construction, (ii)~c
     \EndFor
     \State $g \leftarrow g + |\mathcal{C}_k|$
   \EndFor
-  \State \Return $\{\mathbf{c}^{(h)}\}_{h \in H}$
+  \State \textbf{return} $\{\mathbf{c}^{(h)}\}_{h \in H}$
 \end{algorithmic}
 \end{algorithm}
 
@@ -314,7 +315,7 @@ We show that no merge required to produce the cut at height $h \le \hmax$ involv
 \noindent\emph{Intra-component merges.} All edges within a connected component $\mathcal{C}_k$ have weight $\le \hmax$ by definition. The dense sub-matrix $\mathbf{D}_k$ contains all pairwise distances within $\mathcal{C}_k$. HAC applied to $\mathbf{D}_k$ produces the same dendrogram as HAC applied to the rows/columns of~$D$ restricted to $\mathcal{C}_k$, since no cross-component entry is involved.
 
 \noindent\emph{Inter-component merges.} Let $\mathcal{C}_k$ and $\mathcal{C}_l$ be two distinct components. Because they are disconnected in~$G_{\hmax}$, every pair $(x_i \in \mathcal{C}_k,\; x_j \in \mathcal{C}_l)$ satisfies $d(x_i, x_j) > \hmax$. For single linkage, the merge height is $\min_{i \in \mathcal{C}_k, j \in \mathcal{C}_l} d(x_i, x_j) > \hmax$. For complete and average linkage the merge height is at least as large. For Ward linkage, the variance increase is monotone in inter-cluster distances and exceeds $\hmax$. In all cases, the inter-component merge occurs at height $> \hmax$, and is absent from any cut at $h \le \hmax$.
-\qed
+
 \end{proof}
 
 \begin{corollary}
@@ -326,31 +327,34 @@ The sparse matrix $\mathbf{S}$ contains all information needed to produce exact 
 
 Let $n$ be the number of features, $m = |E|$ the number of edges in $G_{\hmax}$, and $k = m/n$ the mean node degree. Table~\ref{tab:complexity} summarises the complexity of each step.
 
-\begin{table}[t]
+\begin{table}[h]
 \caption{Complexity of Algorithm~\ref{alg:main} vs.\ dense baseline.}
 \label{tab:complexity}
-\small
+\centering
+\resizebox{\columnwidth}{!}{%
 \begin{tabular}{lcc}
 \toprule
 \textbf{Step} & \textbf{Proposed} & \textbf{Dense baseline} \\
 \midrule
-Spatial index build    & $\Onotation{n \log n}$ & --- \\
-Candidate pair queries & $\Onotation{n \log n + m}$ & --- \\
-Distance computations  & $\Onotation{m}$ & $\Onotation{n^2}$ \\
-Storage                & $\Onotation{m}$ & $\Onotation{n^2}$ \\
-Connected components   & $\Onotation{n + m}$ & --- \\
-HAC (all components)   & $\Onotation{\sum_k c_k^2 \log c_k}$ & $\Onotation{n^2 \log n}$ \\
+Spatial index build       & $\Onotation{n \log n}$                      & ---                    \\
+Candidate pair queries    & $\Onotation{n \log n + m}$                  & ---                    \\
+Distance computations     & $\Onotation{m}$                             & $\Onotation{n^2}$      \\
+Storage (sparse graph)    & $\Onotation{m}$                             & $\Onotation{n^2}$      \\
+Storage (HAC subproblems) & $\Onotation{\max_k\, c_k^2}$               & ---                    \\
+Connected components      & $\Onotation{n + m}$                         & ---                    \\
+HAC (all components)      & $\Onotation{\sum_k c_k^2 \log c_k}$        & $\Onotation{n^2 \log n}$ \\
 \midrule
-\textbf{Total time}    & $\Onotation{n \log n + \sum_k c_k^2 \log c_k}$ & $\Onotation{n^2 \log n}$ \\
-\textbf{Total memory}  & $\Onotation{m} = \Onotation{nk}$ & $\Onotation{n^2}$ \\
+\textbf{Total time}       & $\Onotation{n \log n + \sum_k c_k^2 \log c_k}$ & $\Onotation{n^2 \log n}$ \\
+\textbf{Total memory}     & $\Onotation{nk + \max_k\, c_k^2}$          & $\Onotation{n^2}$      \\
 \bottomrule
-\end{tabular}
+\end{tabular}}
 \end{table}
 
-Here \(c_k = |\mathcal{C}_k|\) is the size of the \(k\)-th component. The HAC step within component~\(k\) costs \(\Onotation{c_k^2 \log c_k}\) (or \(\Onotation{c_k^2}\) with \texttt{fastcluster} \cite{mullner2013fastcluster}).
+Here \(c_k = |\mathcal{C}_k|\) is the size of the \(k\)-th component. The HAC step within component~\(k\) costs \(\Onotation{c_k^2 \log c_k}\) with priority-queue-based implementations, or \(\Onotation{c_k^2}\) with \texttt{fastcluster}~\cite{mullner2013fastcluster}. Peak memory is \(\Onotation{nk + \max_k\, c_k^2}\), where the second term reflects the dense sub-matrix \(\mathbf{D}_k\) materialised for the largest component; 
+components are processed sequentially and freed after each HAC call. The memory advantage over the \(\Onotation{n^2}\) dense baseline therefore holds when no single component dominates, i.e.\ when \(\max_k\, c_k \ll n\), which is the expected regime under the geographic sparsity assumption.
 
 \paragraph{Practical regime.}
-For geographically clustered data~--- the common case for natural and anthropogenic features~--- components are small (\(c_k \ll n\)) and numerous. In this regime, \(\sum_k c_k^2 \ll n^2\) and the system is substantially faster than the dense baseline. The worst case is \(K = 1\) (all features in one component), which reduces to the dense baseline. The speedup in distance computations and storage is exactly \(n^2 / (2m)\), which grows linearly with \(n / k\).
+For geographically clustered data, the common case for natural and anthropogenic features, components are small (\(c_k \ll n\)) and numerous. In this regime, \(\sum_k c_k^2 \ll n^2\) and the system is substantially faster than the dense baseline. The worst case is \(K = 1\) (all features in one component), which reduces to the dense baseline. The speedup in distance computations and storage is exactly \(n^2 / (2m)\), which grows linearly with \(n / k\).
 
 \paragraph{MST path for single linkage.} The single-linkage dendrogram is the MST of the complete graph~\cite{gower1969minimum}. By computing the MST of each component's \emph{sparse} sub-graph, we obtain the exact single-linkage dendrogram in \(\Onotation{m_k \log m_k}\) time and \(\Onotation{n_k + m_k}\) memory per component~--- no dense sub-matrix is ever formed. The MST has exactly \(n - 1\) edges; GSHAC computes \(m = \Onotation{nk}\) edges, where \(k\) is the average neighborhood size. Reducing \(\hmax\) to the minimum required by the application directly minimizes ~\(k\) and, thus, the computational cost.
 
@@ -436,7 +440,7 @@ Figure~\ref{fig:exactness} demonstrates exactness on the Iris dataset (\(n = 150
 
 Figure~\ref{fig:scaling} shows wall time and peak memory as a function of~\(n\) for both approaches across the three scenarios at three~\(\hmax\) values. In this fixed-domain setup, point density increases with~\(n\) and \(\bar{k}\) grows proportionally, so both approaches exhibit quadratic scaling (see Section~\ref{sec:constk} for the constant-\(k\) regime). The crossover occurs between \(n = 5{,}000\) and \(n = 10{,}000\) for tight and moderate scenarios. For \(n \geq 50{,}000\) the dense baseline exceeds available memory and is omitted; GSHAC continues to scale.
 
-At \(n = 25{,}000\) (the largest dense-feasible size on our hardware), the maximum time speedup is \(\mathbf{3.11\times}\) (tight, \(\hmax = 10\)\,km) and the maximum memory reduction is \(\mathbf{17.5\times}\) (tight, \(\hmax = 10\)\,km). Even at \(n = 25{,}000\) in the adversarial case (loose, \(\hmax = 50\)\,km, \(\bar{k} \approx 1{,}775\)) GSHAC achieves \(2.82\times\) memory reduction despite being \(0.28\times\) slower in wall time~--- reflecting the high graph density in this worst-case scenario where the sparse graph approaches the complete graph. For \(n \geq 50{,}000\) no dense comparison is possible as the condensed distance matrix alone exceeds 10\,GiB.
+At \(n = 25{,}000\) (the largest dense-feasible size on our hardware), the maximum time speedup is \(\mathbf{3.11\times}\) (tight, \(\hmax = 10\)\,km) and the maximum memory reduction is \(\mathbf{17.5\times}\) (tight, \(\hmax = 10\)\,km). Even at \(n = 25{,}000\) in the adversarial case (loose, \(\hmax = 50\)\,km, \(\bar{k} \approx 1{,}775\)) GSHAC achieves \(2.82\times\) memory reduction despite being \(0.28\times\) slower in wall time~--- reflecting the high graph density in this worst-case scenario where the sparse graph approaches the complete graph. For \(n \geq 50{,}000\) no dense comparison is possible as the condensed distance matrix alone exceeds 10\,GB.
 
 Table~\ref{tab:summary} summarises speedups at \(n \in \{10{,}000,\,25{,}000\}\). In the table, the ``Graph\%'' column shows that graph construction dominates in high-\(k\) regimes, whereas HAC dominates when components are numerous and small. This split matters for generality: the sparse distance graph is a reusable output valid for other algorithms (spectral clustering, MST computation, network analysis).
 
@@ -466,7 +470,7 @@ To demonstrate this, we run a separate experiment with uniformly distributed poi
   \item \textbf{Speedup grows monotonically with~\(n\)}:
     at \(n\!=\!25\text{K}\), GSHAC is \(17.2\times\) faster and
     \(102\times\) more memory-efficient than fastcluster.
-  \item At \(n\!=\!500\text{K}\), GSHAC uses 1.4\,GiB; the dense
+  \item At \(n\!=\!500\text{K}\), GSHAC uses 1.4\,GB; the dense
     matrix would require \(\approx\!2\,\text{TiB}\).
 \end{itemize}
 
@@ -498,7 +502,7 @@ The gap arises from two structural differences. First, sklearn's \texttt{\_fix\_
 
 \subsubsection{Global mining dataset}
 
-GSHAC processes all \(n = 261{,}073\) mining features in \textbf{11.8\,s} (5.8\,s graph construction, 6.0\,s HAC) with \textbf{109\,MiB} peak HAC memory. The dense baseline would require \(\approx\!545\,\text{GiB}\)~--- infeasible on any commodity hardware. Table~\ref{tab:realworld} summarises the comparison.
+GSHAC processes all \(n = 261{,}073\) mining features in \textbf{11.8\,s} (5.8\,s graph construction, 6.0\,s HAC) with \textbf{109\,MB} peak HAC memory. The dense baseline would require \(\approx\!545\,\text{GB}\)~--- infeasible on any commodity hardware. Table~\ref{tab:realworld} summarises the comparison.
 
 \input{./tab_realworld.tex}
 
@@ -556,7 +560,7 @@ Theorem~\ref{thm:exact} covers all standard linkage methods, but practical perfo
 Section~\ref{sec:hdbscan} shows that \texttt{sklearn} HDBSCAN is over 130\(\times\) slower and scales as \(\Onotation{n^2}\). The deeper issue is semantic: HDBSCAN clusters reflect density, not distance thresholds. In applications where ``all features within \(h\)\,km constitute one site'' is a regulatory or operational definition, density-based alternatives are not substitutes. 
 %\texttt{genieclust}~\cite{gagolewski2021genieclust} modifies the merge order for robustness, producing non-standard dendrograms, which are also .
 
-In the sparse-input exact HAC framework (parallels work in bioinformatics~\cite{loewenstein2008mcupgma,nguyen2014sparsehc}), BLAST-threshold similarity graphs serve the same structural role as the geographic distance graph. The geographic setting offers a practical advantage: metric distances enable efficient graph construction in \(\Onotation{n \log n + m}\) via spatial indexes, whereas bioinformatics methods require external pre-computation (e.g., all-against-all BLAST).
+In the sparse-input exact HAC framework (parallels work in bioinformatics~\cite{loewenstein2008efficient,nguyen2014sparsehc}), BLAST-threshold similarity graphs serve the same structural role as the geographic distance graph. The geographic setting offers a practical advantage: metric distances enable efficient graph construction in \(\Onotation{n \log n + m}\) via spatial indexes, whereas bioinformatics methods require external pre-computation (e.g., all-against-all BLAST).
 
 In the worst-case synthetic scenario (loose clustering, \(\hmax = 50\)\,km), GSHAC is still slower than fastcluster (speedup~\(\approx 0.28\times\) at \(n = 25{,}000\)). This reflects the high graph density in this adversarial scenario (\(\bar{k} \approx 1{,}775\), graph density 7\%): the sparse representation carries overhead (index lookups, sparse matrix operations) that a contiguous condensed array avoids. A full native implementation of the sparse-matrix extraction and component loop would further reduce this gap.
 
@@ -576,7 +580,7 @@ Figure~\ref{fig:limits} projects the constant-\(\bar{k}\) scaling behaviour to l
   \caption{Scalability projection based on the constant-\(\bar{k}\) experiment (\(\bar{k} \approx 50\), \(\hmax = 10\)\,km). \emph{Left}: wall time; \emph{right}: peak memory. Measured data (solid) and power-law extrapolation (dotted). GSHAC (blue) scales as \(\sim\!n^{1.1}\) in time and \(\sim\!n^{1.0}\) in memory; the dense baseline (red) scales as \(\Onotation{n^2}\) and exceeds 30\,GiB beyond \(n \approx 40\text{K}\). Green stars mark real-world benchmarks (mining and GeoNames), which fall near the constant-\(\bar{k}\) extrapolation, confirming that the real-world scaling regime matches the bounded-\(\bar{k}\) model.} \label{fig:limits}
 \end{figure*}
 
-\paragraph{Broader impact.} Spatial clustering of industrial or environmental inventories can inform regulatory assessments and land-use planning. Results should be interpreted with domain context: proximity-based cluster membership does not imply common ownership, operational links, or environmental responsibility.
+% \paragraph{Broader impact.} Spatial clustering of industrial or environmental inventories can inform regulatory assessments and land-use planning. Results should be interpreted with domain context: proximity-based cluster membership does not imply common ownership, operational links, or environmental responsibility.
 
 % =======================================================================
 \section{Conclusion}
