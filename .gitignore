@@ -6,6 +6,7 @@ data/
 # Claude Code local settings
 .claude/
 CONTEXT.md
+plan_* 
 
 # LaTeX build artifacts
 paper/*.aux
