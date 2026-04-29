@@ -243,45 +243,62 @@ The goal is to compute, for each \(h \in H\), the same cluster assignment that w
 \subsection{Algorithm}
 \label{sec:algorithm}
 
-Algorithm~\ref{alg:main} has four phases: (i)~spatial index construction, (ii)~candidate pair discovery via range queries and exact distance computation, (iii)~connected component decomposition, and (iv)~independent HAC within each component. The key departure from the dense baseline is that only \(|E| = \Onotation{n \cdot k}\) distances are computed and stored, where \(k = |E| / n\) is the mean node degree in~\(G_{\hmax}\).
+Algorithm~\ref{alg:main} groups the work into two phases. \emph{Phase~1} builds the sparse geographic distance graph: (i)~spatial index construction, (ii)~candidate pair discovery via range queries and exact distance computation, and (iii)~connected-component decomposition. \emph{Phase~2} runs HAC independently within each component, with a fast MST path for single linkage that avoids materialising any dense sub-matrix. The key departure from the dense baseline is that only \(|E| = \Onotation{n \cdot k}\) distances are computed and stored, where \(k = |E| / n\) is the mean node degree in~\(G_{\hmax}\).
 
 \begin{algorithm}[!h]
-\caption{SparseGeoHClust}
+\caption{GSHAC: exact HAC via a sparse geographic distance graph}
 \label{alg:main}
 \begin{algorithmic}[1]
-  \Require Features $\mathcal{X} = \{x_1,\ldots,x_n\}$, max distance
-    $\hmax$, linkage method $\ell$, cut heights $H$
-  \Ensure Cluster label vectors $\{\mathbf{c}^{(h)}\}_{h \in H}$
+  \Require Point coordinates $\mathcal{X} = \{x_1,\ldots,x_n\}$;
+    distance bound $\hmax$;
+    linkage method $L \in \{\text{single, complete, average, Ward}\}$;
+    cut heights $H \subseteq (0, \hmax]$
+  \Ensure Cluster-label vector $\mathbf{c}^{(h)} \in \mathbb{Z}^n$ for each $h \in H$
 
+  \Statex \textbf{Phase 1: Build sparse geographic distance graph}
   \State Build spatial index $\mathcal{T}$ over $\mathcal{X}$
-    \Comment{\(\Onotation{n \log n}\)}
-  \State $E \leftarrow \emptyset$,\quad $\mathbf{S} \leftarrow$ empty sparse matrix
+    \Comment{KD-tree (Euclidean) or Ball-tree (haversine)}
+  \State $\mathbf{S} \leftarrow$ empty $n \times n$ sparse symmetric matrix
   \For{$i = 1$ \textbf{to} $n$}
     \State $N_i \leftarrow \mathcal{T}.\textsc{RangeQuery}(x_i, \hmax)$
-      \Comment{spatial index lookup}
-    \For{$j \in N_i$ with $j > i$}
-      \Comment{upper triangle only}
+    \For{$j \in N_i$ \textbf{with} $j > i$}
+      \Comment{upper triangle}
       \State $s_{ij} \leftarrow d(x_i, x_j)$
-        \Comment{exact distance}
-      \State $\mathbf{S}[i,j] \leftarrow s_{ij}$;\quad
-             $\mathbf{S}[j,i] \leftarrow s_{ij}$
-             \Comment{symmetric}
-      \State $E \leftarrow E \cup \{(i,j)\}$
+      \State $\mathbf{S}[i,j] \leftarrow \mathbf{S}[j,i] \leftarrow s_{ij}$
     \EndFor
   \EndFor
-  \State $\{\mathcal{C}_1,\ldots,\mathcal{C}_K\} \leftarrow
-    \textsc{ConnectedComponents}(\mathbf{S})$
-  \State Initialise label arrays $\mathbf{c}^{(h)}$ for all $h \in H$
-  \State $g \leftarrow 0$ \Comment{global cluster ID counter}
+  \State $\{\mathcal{C}_1,\ldots,\mathcal{C}_K\} \leftarrow \textsc{ConnectedComponents}(\mathbf{S})$
+
+  \Statex \textbf{Phase 2: Component-wise HAC}
+  \State Initialise $\mathbf{c}^{(h)} \in \mathbb{Z}^n$ to $\mathbf{0}$ for each $h \in H$
+  \State $g \leftarrow 0$
+    \Comment{global cluster-ID offset}
   \For{$k = 1$ \textbf{to} $K$}
-    \State $\mathbf{D}_k \leftarrow$ dense sub-matrix of $\mathbf{S}$ for $\mathcal{C}_k$
-    \State $\Delta_k \leftarrow \textsc{hclust}(\mathbf{D}_k,\, \ell)$
-      \Comment{standard HAC}
+    \If{$|\mathcal{C}_k| = 1$}
+      \Comment{singleton: no merges to compute}
+      \State $g \leftarrow g + 1$
+      \For{$h \in H$}
+        \State $\mathbf{c}^{(h)}[\mathcal{C}_k] \leftarrow g$
+      \EndFor
+      \State \textbf{continue}
+    \EndIf
+    \State $\mathbf{S}_k \leftarrow$ sparse sub-matrix of $\mathbf{S}$ restricted to $\mathcal{C}_k$
+    \If{$L = \textbf{single}$}
+      \Comment{MST fast path: no dense sub-matrix}
+      \State $\mathcal{M}_k \leftarrow \textsc{MinimumSpanningTree}(\mathbf{S}_k)$
+      \State $Z_k \leftarrow \textsc{LinkageFromMST}(\mathcal{M}_k)$
+        \Comment{union-find over the $|\mathcal{C}_k|-1$ MST edges}
+    \Else
+      \Comment{dense path for complete / average / Ward}
+      \State $\mathbf{D}_k \leftarrow$ dense materialisation of $\mathbf{S}_k$
+      \State $Z_k \leftarrow \textsc{Linkage}(\mathbf{D}_k,\, L)$
+    \EndIf
     \State $m_k \leftarrow 0$
     \For{$h \in H$}
-      \State $\boldsymbol{\ell}_h \leftarrow \textsc{CutTree}(\Delta_k, h)$
-      \State $\mathbf{c}^{(h)}[\mathcal{C}_k] \leftarrow g + \boldsymbol{\ell}_h$
-      \State $m_k \leftarrow \max(m_k,\, \max \boldsymbol{\ell}_h)$
+      \State $\boldsymbol{\lambda}_h \leftarrow \textsc{CutTree}(Z_k, h)$
+        \Comment{local labels in $\{1,\ldots,n_h^{(k)}\}$}
+      \State $\mathbf{c}^{(h)}[\mathcal{C}_k] \leftarrow g + \boldsymbol{\lambda}_h$
+      \State $m_k \leftarrow \max(m_k,\, \max \boldsymbol{\lambda}_h)$
     \EndFor
     \State $g \leftarrow g + m_k$
   \EndFor
