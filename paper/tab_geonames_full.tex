@@ -5,21 +5,21 @@
   Hardware: AMD Ryzen~7 PRO 8840U, 30\,GB DDR5.}
 \label{tab:geonames_full}
 \small
-\begin{tabular}{lrrrr}
+\begin{tabular}{lrrrrr}
 \toprule
-& \textbf{500\,m} & \textbf{1\,km} & \textbf{2\,km} & \textbf{5\,km} \\
+& \textbf{1\,km} & \textbf{2\,km} & \textbf{5\,km} & \textbf{10\,km} & \textbf{20\,km} \\
 \midrule
-Edges & 11.8M & 35.7M & 112.1M & --- \\
-Sparse storage & 190\,MB & 571\,MB & 1.8\,GB & --- \\
-Largest component & 11{,}156 & 439{,}465 & 593{,}273 & --- \\
+Edges & 35.7M & 112.1M & --- & --- & --- \\
+Sparse storage & 571\,MB & 1.8\,GB & --- & --- & --- \\
+Largest component & 439{,}465 & 593{,}273 & --- & --- & --- \\
 \addlinespace
-Graph time & 3.9\,min & 4.0\,min & 4.9\,min & --- \\
-Graph memory & 5.0\,GB & 10.2\,GB & 26.8\,GB & --- \\
+Graph time & 3.9\,min & 4.9\,min & --- & --- & --- \\
+Graph memory & 10.2\,GB & 26.8\,GB & --- & --- & --- \\
 \addlinespace
-HAC time (est.) & \(\sim\)4\,min & \(\sim\)10\,min & \(\sim\)15\,min & \(\sim\)11\,min \\
-HAC memory (est.) & \(\sim\)1.8\,GB & \(\sim\)2.4\,GB & \(\sim\)2.9\,GB & \(\sim\)2.9\,GB \\
-\textbf{Total (est.)} & \textbf{\(\sim\)8\,min} & \textbf{\(\sim\)14\,min} & \textbf{\(\sim\)20\,min} & \textbf{needs 64\,GB} \\
+HAC time (est.) & \(\sim\)11\,min & \(\sim\)17\,min & \(\sim\)13\,min & \(\sim\)6\,min & \(\sim\)7\,min \\
+HAC memory (est.) & \(\sim\)2.4\,GB & \(\sim\)2.9\,GB & \(\sim\)2.9\,GB & \(\sim\)7.2\,GB & \(\sim\)38.0\,GB \\
+\textbf{Total (est.)} & \textbf{\(\sim\)15\,min} & \textbf{\(\sim\)22\,min} & \textbf{needs 64\,GB} & \textbf{needs 256\,GB} & \textbf{infeasible} \\
 \bottomrule
-\multicolumn{5}{l}{\footnotesize \(^{*}\)Extrapolated; graph exceeded 30\,GB RAM at \(\hmax = 5\)\,km.} \\
+\multicolumn{6}{l}{\footnotesize Dashes denote full-dataset graph rows infeasible at \(\hmax \geq 5\)\,km on a 30\,GiB workstation; HAC rows are extrapolated from the 2M sample.} \\
 \end{tabular}
 \end{table}

@@ -16,6 +16,9 @@ paper/*.log
 paper/*.out
 paper/main.pdf
 paper/comment.cut
+paper/*.fdb_latexmk
+paper/*.fls
+paper/*.synctex.gz
 texput.log
 
 # Python

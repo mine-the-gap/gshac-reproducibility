@@ -260,6 +260,70 @@ def make_scaling_figure(rows, out_path):
 # Figure 3: Scalability limits — measured + extrapolated
 # =====================================================================
 
+# h_max threshold (metres) used for the GeoNames green-star reference point
+# in fig_limits.pdf. Change here to switch to a different threshold from
+# benchmark_geonames.csv without touching the figure code.
+GEONAMES_STAR_HMAX_M = 20000
+
+# Primary k_target for the constant-k blue line in fig_limits. The CSV from
+# benchmark_constk.py contains a sweep over multiple k_target values; this
+# selects which one becomes the headline curve. k=126 matches the empirical
+# mean k of GeoNames-2M at h_max = 20 km (the dominant green star).
+CONSTK_PRIMARY_K = 126
+
+
+def _load_rw_points():
+    """Read real-world reference points (mining + GeoNames) from benchmark CSVs.
+
+    Returns a list of dicts compatible with the green-star plotting loops in
+    make_limits_figure. Each dict carries label, n, time, mem (graph+HAC peak
+    sum, matching the original convention), and offset tuples for the inline
+    annotations. Sources:
+      * benchmark_mining.csv: single-row CSV at h_max=20 km
+      * benchmark_geonames.csv: row matching GEONAMES_STAR_HMAX_M
+    Missing CSVs or thresholds are silently skipped so the figure can still
+    render with whichever points are available.
+    """
+    points = []
+
+    def _label(n):
+        if n >= 1_000_000:
+            return f"$n$={n // 1_000_000}M"
+        if n >= 1000:
+            return f"$n$={n // 1000}K"
+        return f"$n$={n}"
+
+    mining_path = os.path.join(RESULTS_DIR, "benchmark_mining.csv")
+    if os.path.exists(mining_path):
+        m = read_benchmark_csv(mining_path)[0]
+        n = int(m["n"])
+        points.append({
+            "label": _label(n),
+            "n": n,
+            "time": float(m["total_time_s"]),
+            "mem": max(float(m["graph_mem_mib"]), float(m["hac_mem_mib"])),
+            "t_ofs": (1, 6),
+            "m_ofs": (1, 6),
+        })
+
+    geo_path = os.path.join(RESULTS_DIR, "benchmark_geonames.csv")
+    if os.path.exists(geo_path):
+        for r in read_benchmark_csv(geo_path):
+            if int(float(r["h_max_m"])) == GEONAMES_STAR_HMAX_M:
+                n = int(r["n_sample"])
+                points.append({
+                    "label": _label(n),
+                    "n": n,
+                    "time": float(r["total_time_s"]),
+                    "mem": max(float(r["graph_mem_mib"]), float(r["hac_mem_mib"])),
+                    "t_ofs": (1, 6),
+                    "m_ofs": (1, 6),
+                })
+                break
+
+    return points
+
+
 def make_limits_figure(rows, out_path):
     """
     Two-panel figure:
@@ -270,11 +334,16 @@ def make_limits_figure(rows, out_path):
     Adds annotation about parallel processing potential.
     """
 
-    # Use constant-k benchmark data if available (real-world scaling regime)
+    # Use constant-k benchmark data if available (real-world scaling regime).
+    # The CSV may contain multiple k_target values from the slope-invariance
+    # sweep; pick the primary one for the figure's blue line.
     constk_path = os.path.join(RESULTS_DIR, "benchmark_constk.csv")
     if os.path.exists(constk_path):
-        ck_rows = read_benchmark_csv(constk_path)
-        ck_rows.sort(key=lambda r: r["n"])
+        ck_all = read_benchmark_csv(constk_path)
+        ck_primary = [r for r in ck_all
+                      if int(float(r.get("k_target", 0) or 0)) == CONSTK_PRIMARY_K]
+        ck_rows = sorted(ck_primary if ck_primary else ck_all,
+                         key=lambda r: r["n"])
     else:
         # Fallback to moderate h=10km from main benchmark
         ck_rows = sorted(
@@ -324,13 +393,8 @@ def make_limits_figure(rows, out_path):
     # RAM limit
     RAM_MIB = 30 * 1024  # 30 GiB
 
-    # Real-world reference points (from benchmark CSVs)
-    rw_points = [
-        {"label": "$n$=261K", "n": 261_073, "time": 11.8,
-         "mem": 1855 + 109, "t_ofs": (1, 6), "m_ofs": (1, 6)},
-        {"label": "$n$=2M", "n": 2_000_000, "time": 165.3,
-         "mem": 919 + 441, "t_ofs": (1, 6), "m_ofs": (1, 6)},
-    ]
+    # Real-world reference points (loaded from benchmark CSVs)
+    rw_points = _load_rw_points()
 
     # Find n where dense memory crosses 30 GiB RAM
     n_infeasible = n_extrap[np.searchsorted(dn_mem_extrap, RAM_MIB)]

@@ -3,17 +3,23 @@ benchmark_constk.py
 
 Constant-k scaling experiment: domain grows with sqrt(n) so that the
 average neighbourhood size k stays approximately constant as n increases.
-
 This simulates real-world scaling where larger datasets cover larger
 geographic areas (e.g., national → continental → global inventories),
 rather than packing more points into a fixed area.
 
-Under constant k, GSHAC scales as O(n k log n) ≈ O(n log n) in time
-and O(n k) ≈ O(n) in memory, whereas the dense baseline remains O(n²).
+To validate that the scaling *slopes* are determined by the algorithm
+structure rather than by the chosen target neighbourhood size, we sweep
+k_target across multiple values. The resulting curves should be near-
+parallel on a log-log plot --- same slope, different intercepts ---
+confirming that GSHAC scales as O(n k log(n k)) in time and O(n k) in
+memory with slopes that are independent of k itself.
+
+Under constant k, GSHAC scales as O(n k log n) ≈ O(n log n) in time and
+O(n k) ≈ O(n) in memory, whereas the dense baseline remains O(n²).
 
 Outputs:
-  results/benchmark_constk.csv
-  figures/fig_constk.pdf
+  results/benchmark_constk.csv   — one row per (k_target, n) pair
+  paper/fig_constk.pdf           — multi-curve figure (slope-invariance)
 """
 
 from __future__ import annotations
@@ -29,6 +35,7 @@ import numpy as np
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 from pathlib import Path
 
 from gshac.spatial_dist_graph import spatial_dist_graph
@@ -36,7 +43,7 @@ from gshac.sparse_hclust import sparse_hclust, dense_hclust
 
 _ROOT = os.path.join(os.path.dirname(__file__), "..")
 RESULTS_DIR = os.path.join(_ROOT, "results")
-FIGURES_DIR = os.path.join(_ROOT, "figures")
+FIGURES_DIR = os.path.join(_ROOT, "paper")  # fig_constk.pdf is included by main.tex
 os.makedirs(RESULTS_DIR, exist_ok=True)
 os.makedirs(FIGURES_DIR, exist_ok=True)
 
@@ -44,15 +51,20 @@ os.makedirs(FIGURES_DIR, exist_ok=True)
 # Parameters
 # ------------------------------------------------------------------
 
-H_MAX       = 10_000        # 10 km
-K_TARGET    = 50            # target average neighbourhood size
+H_MAX       = 20_000        # 20 km — matches the real-world stars in fig_limits
+# Sweep target neighbourhood size to demonstrate slope-invariance.
+# k=126 matches the empirical mean k of GeoNames-2M at h_max = 20 km, which is
+# the dominant green-star reference in fig_limits; the other values bracket
+# it to show that slopes do not depend on the chosen density.
+K_TARGETS   = [20, 50, 126, 200]
+PRIMARY_K   = 126           # primary k for tab_constk and the fig_limits blue line
 METHOD      = "single"
 N_REP       = 5
 N_SIZES     = [1_000, 5_000, 10_000, 25_000, 50_000, 100_000, 250_000, 500_000]
 
 
 def domain_for_k(n, h_max, k_target):
-    """Domain size (m) that yields approximately k_target neighbours.
+    """Domain side length (m) yielding approximately k_target neighbours.
 
     For uniform random points in a square domain of side L, the expected
     number of neighbours within distance r is k = n * pi * r^2 / L^2.
@@ -85,156 +97,187 @@ def measure(fn):
 # Run benchmark
 # ------------------------------------------------------------------
 
-out_path = os.path.join(RESULTS_DIR, "benchmark_constk.csv")
-f_out = open(out_path, "w", newline="")
-writer = None
-rows = []
+if __name__ == "__main__":
+    out_path = os.path.join(RESULTS_DIR, "benchmark_constk.csv")
+    f_out = open(out_path, "w", newline="")
+    writer = None
+    rows = []
 
-h_max_km = H_MAX / 1000
-h_cuts = [H_MAX // 2, H_MAX]  # two cut heights
+    h_max_km = H_MAX / 1000
+    h_cuts = [H_MAX // 2, H_MAX]
 
-print(f"Constant-k scaling experiment")
-print(f"  h_max = {h_max_km:.0f} km, target k ≈ {K_TARGET}")
-print(f"  n sizes: {N_SIZES}")
-print(f"  Dense feasible up to n = {max(n for n in N_SIZES if dense_feasible(n)):,}")
-print()
+    print(f"Constant-k scaling experiment (slope-invariance sweep)")
+    print(f"  h_max          = {h_max_km:.0f} km")
+    print(f"  k_target sweep = {K_TARGETS}  (primary: k={PRIMARY_K})")
+    print(f"  n sizes        = {N_SIZES}")
+    print(f"  Dense feasible up to n = {max(n for n in N_SIZES if dense_feasible(n)):,}")
+    print()
 
-for n in N_SIZES:
-    domain_m = domain_for_k(n, H_MAX, K_TARGET)
-    run_dense = dense_feasible(n)
-    tag = "" if run_dense else " [sparse only]"
-    print(f"  n = {n:>7,}  domain = {domain_m/1000:>7.1f} km{tag}", end="", flush=True)
+    for k_target in K_TARGETS:
+        print(f"=== k_target = {k_target} =================================")
+        for n in N_SIZES:
+            domain_m = domain_for_k(n, H_MAX, k_target)
+            run_dense = dense_feasible(n)
+            tag = "" if run_dense else " [sparse only]"
+            print(f"  n = {n:>7,}  domain = {domain_m/1000:>8.1f} km{tag}",
+                  end="", flush=True)
 
-    pts = generate_uniform_points(n, domain_m)
+            pts = generate_uniform_points(n, domain_m)
 
-    dense_times, dense_mems = [], []
-    sparse_times, sparse_mems = [], []
-    graph_times, hac_times = [], []
-    n_edges_val = mean_k_val = None
-    dt = dm = None
+            dense_times, dense_mems = [], []
+            sparse_times, sparse_mems = [], []
+            graph_times, hac_times = [], []
+            n_edges_val = mean_k_val = None
+            dt = dm = None
 
-    for rep in range(N_REP):
-        if run_dense:
-            _, dt, dm = measure(lambda: dense_hclust(pts, h_cuts, METHOD))
-            dense_times.append(dt)
-            dense_mems.append(dm)
+            for rep in range(N_REP):
+                if run_dense:
+                    _, dt, dm = measure(lambda: dense_hclust(pts, h_cuts, METHOD))
+                    dense_times.append(dt)
+                    dense_mems.append(dm)
+                    gc.collect()
+
+                graph, gt, _ = measure(lambda: spatial_dist_graph(pts, H_MAX))
+                _, ht, _ = measure(lambda: sparse_hclust(graph, h_cuts, METHOD))
+                graph_times.append(gt)
+                hac_times.append(ht)
+                sparse_times.append(gt + ht)
+
+                if rep == 0:
+                    n_edges_val = graph["n_edges"]
+                    mean_k_val = round(2 * n_edges_val / n, 1)
+
+                del graph
+                gc.collect()
+
+                def run_sparse_mem():
+                    g2 = spatial_dist_graph(pts, H_MAX)
+                    res = sparse_hclust(g2, h_cuts, METHOD)
+                    return res
+
+                _, _, sm = measure(run_sparse_mem)
+                sparse_mems.append(sm)
+                gc.collect()
+
+            row = {
+                "n":                n,
+                "domain_km":        round(domain_m / 1000, 1),
+                "h_max_km":         h_max_km,
+                "k_target":         k_target,
+                "mean_k":           mean_k_val,
+                "n_edges":          n_edges_val,
+                "dense_time_mean":  round(np.mean(dense_times), 4) if run_dense else "",
+                "dense_time_sd":    round(np.std(dense_times, ddof=1), 4) if run_dense else "",
+                "dense_mem_mean":   round(np.mean(dense_mems), 2) if run_dense else "",
+                "dense_mem_sd":     round(np.std(dense_mems, ddof=1), 2) if run_dense else "",
+                "sparse_time_mean": round(np.mean(sparse_times), 4),
+                "sparse_time_sd":   round(np.std(sparse_times, ddof=1), 4),
+                "sparse_mem_mean":  round(np.mean(sparse_mems), 2),
+                "sparse_mem_sd":    round(np.std(sparse_mems, ddof=1), 2),
+                "graph_time_mean":  round(np.mean(graph_times), 4),
+                "hac_time_mean":    round(np.mean(hac_times), 4),
+                "speedup_time":     round(np.mean(dense_times) / np.mean(sparse_times), 2) if run_dense else "",
+                "speedup_mem":      round(np.mean(dense_mems) / np.mean(sparse_mems), 2) if run_dense else "",
+            }
+            rows.append(row)
+
+            if writer is None:
+                writer = csv.DictWriter(f_out, fieldnames=row.keys())
+                writer.writeheader()
+            writer.writerow(row)
+            f_out.flush()
+
+            if run_dense:
+                print(f"  k={mean_k_val:>5}  dense={row['dense_time_mean']:.3f}s/{row['dense_mem_mean']:.0f}MiB"
+                      f"  sparse={row['sparse_time_mean']:.3f}s/{row['sparse_mem_mean']:.0f}MiB"
+                      f"  speedup={row['speedup_time']}x time, {row['speedup_mem']}x mem")
+            else:
+                print(f"  k={mean_k_val:>5}  sparse={row['sparse_time_mean']:.3f}s/{row['sparse_mem_mean']:.0f}MiB")
+
+            del pts
             gc.collect()
+        print()
 
-        graph, gt, _ = measure(lambda: spatial_dist_graph(pts, H_MAX))
-        _, ht, _ = measure(lambda: sparse_hclust(graph, h_cuts, METHOD))
-        graph_times.append(gt)
-        hac_times.append(ht)
-        sparse_times.append(gt + ht)
+    f_out.close()
+    print(f"\nResults written to {out_path}")
 
-        if rep == 0:
-            n_edges_val = graph["n_edges"]
-            mean_k_val = round(2 * n_edges_val / n, 1)
+    # ------------------------------------------------------------------
+    # Figure: multi-k slope invariance
+    # ------------------------------------------------------------------
 
-        del graph
-        gc.collect()
+    fig, (ax_time, ax_mem) = plt.subplots(1, 2, figsize=(7.16, 3.0))
 
-        def run_sparse_mem():
-            g2 = spatial_dist_graph(pts, H_MAX)
-            res = sparse_hclust(g2, h_cuts, METHOD)
-            return res
+    ks_unique = sorted(set(r["k_target"] for r in rows))
+    colors = cm.viridis(np.linspace(0.15, 0.85, len(ks_unique)))
 
-        _, _, sm = measure(run_sparse_mem)
-        sparse_mems.append(sm)
-        gc.collect()
+    # Sparse curves, one per k
+    for i, k in enumerate(ks_unique):
+        rows_k = sorted([r for r in rows if r["k_target"] == k],
+                        key=lambda r: r["n"])
+        ns_k = [r["n"] for r in rows_k]
+        ts_k = [r["sparse_time_mean"] for r in rows_k]
+        ms_k = [r["sparse_mem_mean"]  for r in rows_k]
+        lw   = 2.0 if k == PRIMARY_K else 1.2
+        marker_size = 5 if k == PRIMARY_K else 3
+        label = f"GSHAC, $\\bar{{k}}$={k}" + (" (primary)" if k == PRIMARY_K else "")
+        ax_time.plot(ns_k, ts_k, "o-", color=colors[i], linewidth=lw,
+                     markersize=marker_size, label=label)
+        ax_mem.plot(ns_k, ms_k, "o-", color=colors[i], linewidth=lw,
+                    markersize=marker_size, label=label)
 
-    row = {
-        "n":                n,
-        "domain_km":        round(domain_m / 1000, 1),
-        "h_max_km":         h_max_km,
-        "k_target":         K_TARGET,
-        "mean_k":           mean_k_val,
-        "n_edges":          n_edges_val,
-        "dense_time_mean":  round(np.mean(dense_times), 4) if run_dense else "",
-        "dense_time_sd":    round(np.std(dense_times, ddof=1), 4) if run_dense else "",
-        "dense_mem_mean":   round(np.mean(dense_mems), 2) if run_dense else "",
-        "dense_mem_sd":     round(np.std(dense_mems, ddof=1), 2) if run_dense else "",
-        "sparse_time_mean": round(np.mean(sparse_times), 4),
-        "sparse_time_sd":   round(np.std(sparse_times, ddof=1), 4),
-        "sparse_mem_mean":  round(np.mean(sparse_mems), 2),
-        "sparse_mem_sd":    round(np.std(sparse_mems, ddof=1), 2),
-        "graph_time_mean":  round(np.mean(graph_times), 4),
-        "hac_time_mean":    round(np.mean(hac_times), 4),
-        "speedup_time":     round(np.mean(dense_times) / np.mean(sparse_times), 2) if run_dense else "",
-        "speedup_mem":      round(np.mean(dense_mems) / np.mean(sparse_mems), 2) if run_dense else "",
-    }
-    rows.append(row)
+    # Dense curve (use the first k's measured dense; dense is k-independent)
+    dn_rows = sorted([r for r in rows
+                       if r["k_target"] == K_TARGETS[0]
+                       and r["dense_time_mean"] != ""],
+                      key=lambda r: r["n"])
+    if dn_rows:
+        dn_ns    = [r["n"] for r in dn_rows]
+        dn_times = [r["dense_time_mean"] for r in dn_rows]
+        dn_mems  = [r["dense_mem_mean"]  for r in dn_rows]
+        ax_time.plot(dn_ns, dn_times, "s--", color="#d62728",
+                     linewidth=1.5, markersize=4, label="fastcluster (dense)")
+        ax_mem.plot(dn_ns, dn_mems, "s--", color="#d62728",
+                    linewidth=1.5, markersize=4, label="fastcluster (dense)")
 
-    if writer is None:
-        writer = csv.DictWriter(f_out, fieldnames=row.keys())
-        writer.writeheader()
-    writer.writerow(row)
-    f_out.flush()
+    # Reference slopes anchored to the primary curve
+    n_ref = np.array([N_SIZES[0], N_SIZES[-1]], dtype=float)
+    ref_rows = sorted([r for r in rows if r["k_target"] == PRIMARY_K],
+                      key=lambda r: r["n"])
+    t_ref0 = ref_rows[0]["sparse_time_mean"]
+    m_ref0 = ref_rows[0]["sparse_mem_mean"]
 
-    if run_dense:
-        print(f"  k={mean_k_val:>5}  dense={row['dense_time_mean']:.3f}s/{row['dense_mem_mean']:.0f}MiB"
-              f"  sparse={row['sparse_time_mean']:.3f}s/{row['sparse_mem_mean']:.0f}MiB"
-              f"  speedup={row['speedup_time']}x time, {row['speedup_mem']}x mem")
-    else:
-        print(f"  k={mean_k_val:>5}  sparse={row['sparse_time_mean']:.3f}s/{row['sparse_mem_mean']:.0f}MiB")
+    ax_time.plot(n_ref, t_ref0 * (n_ref / n_ref[0]) ** 1.1, ":",
+                 color="grey", alpha=0.5, label=r"$O(n^{1.1})$ ref.")
+    if dn_rows:
+        ax_time.plot(n_ref, dn_times[0] * (n_ref / n_ref[0]) ** 2, ":",
+                     color="#d62728", alpha=0.3, label=r"$O(n^2)$ ref.")
 
-    del pts
-    gc.collect()
+    ax_time.set_xscale("log")
+    ax_time.set_yscale("log")
+    ax_time.set_xlabel("$n$ (dataset size)", fontsize=9)
+    ax_time.set_ylabel("Wall time (s)", fontsize=9)
+    ax_time.set_title(f"Wall time (constant $\\bar{{k}}$, $h_{{\\max}}=${h_max_km:.0f}\\,km)",
+                      fontsize=9)
+    ax_time.legend(fontsize=6, loc="best")
+    ax_time.grid(True, which="both", linestyle=":", linewidth=0.5, alpha=0.5)
 
-f_out.close()
-print(f"\nResults written to {out_path}")
+    ax_mem.plot(n_ref, m_ref0 * (n_ref / n_ref[0]), ":",
+                color="grey", alpha=0.5, label=r"$O(n)$ ref.")
+    if dn_rows:
+        ax_mem.plot(n_ref, dn_mems[0] * (n_ref / n_ref[0]) ** 2, ":",
+                    color="#d62728", alpha=0.3, label=r"$O(n^2)$ ref.")
 
-# ------------------------------------------------------------------
-# Figure
-# ------------------------------------------------------------------
+    ax_mem.set_xscale("log")
+    ax_mem.set_yscale("log")
+    ax_mem.set_xlabel("$n$ (dataset size)", fontsize=9)
+    ax_mem.set_ylabel("Peak memory (MiB)", fontsize=9)
+    ax_mem.set_title(f"Peak memory (constant $\\bar{{k}}$, $h_{{\\max}}=${h_max_km:.0f}\\,km)",
+                     fontsize=9)
+    ax_mem.legend(fontsize=6, loc="best")
+    ax_mem.grid(True, which="both", linestyle=":", linewidth=0.5, alpha=0.5)
 
-fig, (ax_time, ax_mem) = plt.subplots(1, 2, figsize=(10, 4))
-
-ns       = [r["n"] for r in rows]
-sp_times = [r["sparse_time_mean"] for r in rows]
-sp_mems  = [r["sparse_mem_mean"] for r in rows]
-dn_ns    = [r["n"] for r in rows if r["dense_time_mean"] != ""]
-dn_times = [r["dense_time_mean"] for r in rows if r["dense_time_mean"] != ""]
-dn_mems  = [r["dense_mem_mean"] for r in rows if r["dense_mem_mean"] != ""]
-ks       = [r["mean_k"] for r in rows]
-
-# Time
-ax_time.plot(ns, sp_times, "o-", color="#1f77b4", linewidth=2, label="GSHAC")
-if dn_ns:
-    ax_time.plot(dn_ns, dn_times, "s--", color="#d62728", linewidth=2, label="fastcluster")
-# Reference slopes
-n_ref = np.array([ns[0], ns[-1]], dtype=float)
-t0 = sp_times[0]
-ax_time.plot(n_ref, t0 * (n_ref / n_ref[0]) ** 1.1, ":", color="grey", alpha=0.5, label=r"$O(n^{1.1})$ ref.")
-ax_time.plot(n_ref, (dn_times[0] if dn_times else t0) * (n_ref / n_ref[0]) ** 2, ":", color="#d62728", alpha=0.3, label=r"$O(n^2)$ ref.")
-ax_time.set_xscale("log")
-ax_time.set_yscale("log")
-ax_time.set_xlabel("n (dataset size)", fontsize=10)
-ax_time.set_ylabel("Wall time (s)", fontsize=10)
-ax_time.set_title("Wall time (constant k)", fontsize=11)
-ax_time.legend(fontsize=8)
-ax_time.grid(True, which="both", linestyle=":", linewidth=0.5, alpha=0.5)
-
-# Annotate k values
-for i in range(0, len(ns), 2):
-    ax_time.annotate(f"k={ks[i]:.0f}", (ns[i], sp_times[i]),
-                     textcoords="offset points", xytext=(5, 8), fontsize=7, color="#1f77b4")
-
-# Memory
-ax_mem.plot(ns, sp_mems, "o-", color="#1f77b4", linewidth=2, label="GSHAC")
-if dn_ns:
-    ax_mem.plot(dn_ns, dn_mems, "s--", color="#d62728", linewidth=2, label="fastcluster")
-ax_mem.plot(n_ref, sp_mems[0] * (n_ref / n_ref[0]), ":", color="grey", alpha=0.5, label=r"$O(n)$ ref.")
-ax_mem.plot(n_ref, (dn_mems[0] if dn_mems else sp_mems[0]) * (n_ref / n_ref[0]) ** 2, ":", color="#d62728", alpha=0.3, label=r"$O(n^2)$ ref.")
-ax_mem.set_xscale("log")
-ax_mem.set_yscale("log")
-ax_mem.set_xlabel("n (dataset size)", fontsize=10)
-ax_mem.set_ylabel("Peak memory (MiB)", fontsize=10)
-ax_mem.set_title("Peak memory (constant k)", fontsize=11)
-ax_mem.legend(fontsize=8)
-ax_mem.grid(True, which="both", linestyle=":", linewidth=0.5, alpha=0.5)
-
-fig.tight_layout()
-fig_path = os.path.join(FIGURES_DIR, "fig_constk.pdf")
-fig.savefig(fig_path, bbox_inches="tight")
-plt.close(fig)
-print(f"Saved {fig_path}")
+    fig.tight_layout()
+    fig_path = os.path.join(FIGURES_DIR, "fig_constk.pdf")
+    fig.savefig(fig_path, bbox_inches="tight")
+    plt.close(fig)
+    print(f"Saved {fig_path}")

@@ -6,7 +6,7 @@ sparse HAC approach is feasible at n ~ 1M–12M features.
 
 Phases:
   1. Download + parse GeoNames (lat/lon only)
-  2. Build sparse distance graph at h_max = 500 m and 1 km
+  2. Build sparse distance graph at h_max = 1 km and 2 km
   3. Report component statistics and memory/time figures
   4. Estimate HAC feasibility from component size distribution
 
@@ -33,7 +33,7 @@ ZIP_URL   = "https://download.geonames.org/export/dump/allCountries.zip"
 ZIP_PATH  = DATA_DIR / "geonames_allCountries.zip"
 TXT_PATH  = DATA_DIR / "allCountries.txt"
 
-H_MAX_VALS = [500, 1_000, 2_000]   # metres
+H_MAX_VALS = [1_000, 2_000]   # metres
 FEATURE_CLASSES = None              # None = all; or e.g. {"P", "S"} to filter
 
 

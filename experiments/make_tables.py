@@ -164,8 +164,14 @@ $n$ & $\\hmax$ & Sc. & Time & Mem & Graph\\% \\\\
 # ── Table 3: Constant-k scaling ───────────────────────────────────────
 
 def make_tab_constk():
-    rows = read_csv("benchmark_constk.csv")
-    rows.sort(key=lambda r: r["n"])
+    # The CSV may contain multiple k_target values from the slope-invariance
+    # sweep; tab_constk shows the primary k=126 row by row, with the other
+    # k values left to fig_constk.
+    PRIMARY_K = 126
+    all_rows = read_csv("benchmark_constk.csv")
+    primary = [r for r in all_rows
+               if int(float(r.get("k_target", 0) or 0)) == PRIMARY_K]
+    rows = sorted(primary if primary else all_rows, key=lambda r: r["n"])
 
     # Find best speedup for bolding
     speedups = [float(r["speedup_time"]) for r in rows
@@ -215,10 +221,13 @@ def make_tab_constk():
     body = "\n".join(tex_lines)
 
     content = f"""\\begin{{table}}[t]
-\\caption{{Constant-\\(\\bar{{k}}\\) scaling (uniform points,
-  \\(\\hmax = 10\\)\\,km, \\(\\bar{{k}} \\approx 50\\)).
-  Domain grows as \\(L \\propto \\sqrt{{n}}\\).
-  Dense infeasible for \\(n \\geq 50\\text{{K}}\\).}}
+\\caption{{Constant-\\(\\bar{{k}}\\) scaling at the primary
+  configuration (uniform points, \\(\\hmax = 20\\)\\,km,
+  \\(\\bar{{k}} \\approx 126\\)). Domain grows as
+  \\(L \\propto \\sqrt{{n}}\\). Dense infeasible for
+  \\(n \\geq 50\\text{{K}}\\). Slope-invariance across
+  \\(\\bar{{k}}_{{\\text{{target}}}} \\in \\{{20, 50, 126, 200\\}}\\)
+  is shown in Figure~\\ref{{fig:constk}}.}}
 \\label{{tab:constk}}
 \\small
 \\begin{{tabular}}{{rrrrrrr}}
@@ -423,7 +432,7 @@ def make_tab_geonames():
     rows.sort(key=lambda r: r["h_max_m"])
 
     data = {int(r["h_max_m"]): r for r in rows}
-    h_vals = [500, 1000, 2000, 5000]
+    h_vals = [1000, 2000, 5000, 10000, 20000]
 
     def _edges(h):
         e = int(data[h]["n_edges"])
@@ -447,7 +456,11 @@ def make_tab_geonames():
 
     def _maxsub(h):
         gb = float(data[h]["max_sub_gb"])
-        return f"{gb:.2f}\\,GiB" if gb < 1 else f"{gb:.1f}\\,GiB"
+        if gb >= 1000:
+            return f"{gb / 1024:.1f}\\,TiB"
+        if gb < 1:
+            return f"{gb:.2f}\\,GiB"
+        return f"{gb:.1f}\\,GiB"
 
     def _graph_t(h):
         return f"{int(round(float(data[h]['graph_time_s'])))}\\,s"
@@ -489,14 +502,17 @@ def make_tab_geonames():
     content = f"""\\begin{{table}}[t]
 \\caption{{GSHAC results on a 2M-point GeoNames sample
   (\\(n_{{\\text{{full}}}} = {n_full}\\)), single linkage, haversine.
-  Dense \\(n^2\\) for 2M: 32\\,TiB; for \\(n_{{\\text{{full}}}}\\): 1.4\\,PiB.}}
+  All rows are measured runs except `Max sub-matrix', which is the
+  analytical dense size the MST path avoids materialising; the dense
+  \\(n^2\\) baseline (32\\,TiB at 2M, 1.4\\,PiB at \\(n_{{\\text{{full}}}}\\))
+  is also analytical and not run.}}
 \\label{{tab:geonames}}
 \\small
-\\begin{{tabular}}{{lrrrr}}
+\\begin{{tabular}}{{lrrrrr}}
 \\toprule
-& \\multicolumn{{4}}{{c}}{{\\(\\hmax\\)}} \\\\
-\\cmidrule(l){{2-5}}
-& \\textbf{{500\\,m}} & \\textbf{{1\\,km}} & \\textbf{{2\\,km}} & \\textbf{{5\\,km}} \\\\
+& \\multicolumn{{5}}{{c}}{{\\(\\hmax\\)}} \\\\
+\\cmidrule(l){{2-6}}
+& \\textbf{{1\\,km}} & \\textbf{{2\\,km}} & \\textbf{{5\\,km}} & \\textbf{{10\\,km}} & \\textbf{{20\\,km}} \\\\
 \\midrule
 {body}
 \\bottomrule
@@ -585,7 +601,7 @@ def make_tab_geonames_full():
     n_sample = 2_000_000
     scale = n_full / n_sample
 
-    h_vals = [500, 1000, 2000, 5000]
+    h_vals = [1000, 2000, 5000, 10000, 20000]
 
     def _edges(h):
         if h not in ex:
@@ -637,12 +653,16 @@ def make_tab_geonames_full():
         return f"\\(\\sim\\){est / 1024:.1f}\\,GB"
 
     def _total_est(h):
-        if h == 5000:
-            return "\\textbf{needs 64\\,GB}"
         if h in ex and h in geo:
             g_t = float(ex[h]["graph_time_s"])
             h_t = float(geo[h]["hac_time_s"]) * scale
             return f"\\textbf{{\\(\\sim\\){(g_t + h_t) / 60:.0f}\\,min}}"
+        if h == 5000:
+            return "\\textbf{needs 64\\,GB}"
+        if h == 10000:
+            return "\\textbf{needs 256\\,GB}"
+        if h == 20000:
+            return "\\textbf{infeasible}"
         return "---"
 
     metrics = [
@@ -672,13 +692,13 @@ def make_tab_geonames_full():
   Hardware: AMD Ryzen~7 PRO 8840U, 30\\,GB DDR5.}}
 \\label{{tab:geonames_full}}
 \\small
-\\begin{{tabular}}{{lrrrr}}
+\\begin{{tabular}}{{lrrrrr}}
 \\toprule
-& \\textbf{{500\\,m}} & \\textbf{{1\\,km}} & \\textbf{{2\\,km}} & \\textbf{{5\\,km}} \\\\
+& \\textbf{{1\\,km}} & \\textbf{{2\\,km}} & \\textbf{{5\\,km}} & \\textbf{{10\\,km}} & \\textbf{{20\\,km}} \\\\
 \\midrule
 {body}
 \\bottomrule
-\\multicolumn{{5}}{{l}}{{\\footnotesize \\(^{{*}}\\)Extrapolated; graph exceeded 30\\,GB RAM at \\(\\hmax = 5\\)\\,km.}} \\\\
+\\multicolumn{{6}}{{l}}{{\\footnotesize Dashes denote full-dataset graph rows infeasible at \\(\\hmax \\geq 5\\)\\,km on a 30\\,GiB workstation; HAC rows are extrapolated from the 2M sample.}} \\\\
 \\end{{tabular}}
 \\end{{table}}"""
 

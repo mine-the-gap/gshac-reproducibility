@@ -2,7 +2,7 @@
 benchmark_geonames.py
 
 Spatially stratified 2M-point sample from GeoNames allCountries
-(n_full ~ 13.4M), benchmarked across h_max = 1 km / 2 km / 5 km / 10 km.
+(n_full ~ 13.4M), benchmarked across h_max = 1 km / 2 km / 5 km / 10 km / 20 km.
 
 Phases:
   1. Parse GeoNames (allCountries.txt must exist in data/)
@@ -17,7 +17,7 @@ Run explore_geonames.py first to download and unzip allCountries.txt.
 
 from __future__ import annotations
 
-import sys, time, tracemalloc, csv
+import sys, time, tracemalloc, csv, gc
 import numpy as np
 from pathlib import Path
 
@@ -31,7 +31,7 @@ TXT_PATH    = DATA_DIR / "allCountries.txt"
 
 N_SAMPLE     = 2_000_000
 RANDOM_SEED  = 42
-H_MAX_VALS   = [1_000, 2_000, 5_000, 10_000]   # metres
+H_MAX_VALS   = [1_000, 2_000, 5_000, 10_000, 20_000]   # metres
 H_CUT_FRAC   = 1.0   # h_cut = h_max (single cut per run)
 MAX_SUBMAT_GB = 20.0  # skip HAC if largest-component sub-matrix exceeds this
 
@@ -225,33 +225,35 @@ def run_benchmark(coords, h_max_m, dense_gb_full):
 # ------------------------------------------------------------------
 # Main
 # ------------------------------------------------------------------
-print("=" * 60)
-print(f"GeoNames benchmark  ({N_SAMPLE/1e6:.0f}M-point stratified sample)")
-print("=" * 60)
+if __name__ == "__main__":
+    print("=" * 60)
+    print(f"GeoNames benchmark  ({N_SAMPLE/1e6:.0f}M-point stratified sample)")
+    print("=" * 60)
 
-if not TXT_PATH.exists():
-    print(f"ERROR: {TXT_PATH} not found. Run explore_geonames.py first.")
-    sys.exit(1)
+    if not TXT_PATH.exists():
+        print(f"ERROR: {TXT_PATH} not found. Run explore_geonames.py first.")
+        sys.exit(1)
 
-df = load_coords()
-n_full = len(df)
-dense_gb_full = n_full ** 2 * 8 / 1e9
+    df = load_coords()
+    n_full = len(df)
+    dense_gb_full = n_full ** 2 * 8 / 1e9
 
-coords_sample = stratified_sample(df, N_SAMPLE, seed=RANDOM_SEED)
-del df  # free ~3 GB before graph construction
+    coords_sample = stratified_sample(df, N_SAMPLE, seed=RANDOM_SEED)
+    del df            # free the pandas DataFrame
+    gc.collect()      # force immediate reclamation before graph construction
 
-print(f"\nCoordinate range: lon [{coords_sample[:,0].min():.1f}, {coords_sample[:,0].max():.1f}]"
-      f"  lat [{coords_sample[:,1].min():.1f}, {coords_sample[:,1].max():.1f}]")
+    print(f"\nCoordinate range: lon [{coords_sample[:,0].min():.1f}, {coords_sample[:,0].max():.1f}]"
+          f"  lat [{coords_sample[:,1].min():.1f}, {coords_sample[:,1].max():.1f}]")
 
-results = []
-for h_max in H_MAX_VALS:
-    r = run_benchmark(coords_sample, h_max, dense_gb_full)
-    results.append(r)
+    results = []
+    for h_max in H_MAX_VALS:
+        r = run_benchmark(coords_sample, h_max, dense_gb_full)
+        results.append(r)
 
-# Write CSV
-out = RESULTS_DIR / "benchmark_geonames.csv"
-with open(out, "w", newline="") as f:
-    writer = csv.DictWriter(f, fieldnames=results[0].keys())
-    writer.writeheader()
-    writer.writerows(results)
-print(f"\nResults written to {out}")
+    # Write CSV
+    out = RESULTS_DIR / "benchmark_geonames.csv"
+    with open(out, "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=results[0].keys())
+        writer.writeheader()
+        writer.writerows(results)
+    print(f"\nResults written to {out}")
