@@ -379,35 +379,10 @@ For geographically clustered data, the common case for natural and anthropogenic
 
 \paragraph{MST path for single linkage.} The single-linkage dendrogram is the MST of the complete graph~\cite{gower1969minimum}. By computing the MST of each component's \emph{sparse} sub-graph, we obtain the exact single-linkage dendrogram in \(\Onotation{m_k \log m_k}\) time and \(\Onotation{n_k + m_k}\) memory per component~--- no dense sub-matrix is ever formed. The MST has exactly \(n - 1\) edges; GSHAC computes \(m = \Onotation{nk}\) edges, where \(k\) is the average neighborhood size. Reducing \(\hmax\) to the minimum required by the application directly minimizes ~\(k\) and, thus, the computational cost.
 
-\section{System architecture}
-\label{sec:system}
-
-The Python implementation is backed by C libraries for all computationally intensive operations:
-\begin{itemize}[leftmargin=*,topsep=2pt,itemsep=1pt]
-  \item \texttt{scipy.spatial.cKDTree} \cite{virtanen2020} for Euclidean range queries;\\ \texttt{sklearn.\allowbreak neighbors.\allowbreak BallTree} \cite{pedregosa2011sklearn} with the haversine metric for geodesic range queries.
-  \item \texttt{scipy.sparse.\allowbreak csr\_matrix} for the sparse distance graph.
-  \item \texttt{scipy.sparse.\allowbreak csgraph.\allowbreak connected\_\allowbreak components} for component decomposition.
-\end{itemize}
-
-The implementation accepts input coordinates as a numeric \((n, 2)\) array --- \((x, y)\) in metres for the Euclidean / KD-tree path, \((\text{lon}, \text{lat})\) in degrees for the haversine / Ball-tree path. Polygon and other non-point geometries are not supported by the current API; users may pre-process them to representative points (e.g., centroids) before invoking the system.
-
-\paragraph{Two HAC paths.}
-\begin{sloppypar}
-For \emph{single linkage}, the system computes \texttt{scipy.sparse.\allowbreak csgraph.\allowbreak minimum\_\allowbreak spanning\_tree} on each component's sparse sub-matrix, then constructs the linkage matrix~\(Z\) via a union-find pass over the \(n_k - 1\) MST edges. This path is \(\Onotation{m_k \log m_k}\) time and \(\Onotation{n_k + m_k}\) memory~--- \emph{no dense matrix is formed}, regardless of component size. The resulting \(Z\) matrix is a standard scipy linkage matrix, supporting \texttt{fcluster} at any cut height \(h \le \hmax\) and full dendrogram visualisation. For \emph{other linkage methods} (complete, average, Ward): the dense sub-matrix is extracted per component via \texttt{scipy.spatial.\allowbreak distance.\allowbreak squareform} and passed to \texttt{fastcluster.\allowbreak linkage}~\cite{mullner2013fastcluster}, with \texttt{scipy.cluster.\allowbreak hierarchy.\allowbreak linkage} as a fallback when fastcluster is unavailable.
-\end{sloppypar}
-
-Only the orchestration layer (component iteration, label assignment) is pure Python; all spatial queries, matrix operations, and HAC computations are C-backed --- via scipy/sklearn libraries for spatial indexing and matrix operations, and via a dedicated C extension (\texttt{\_gshac.so}) that implements union-find linkage construction over MST edges, haversine distance computation, and batch threshold-based dendrogram cutting with GIL release. A pure-Python fallback is used when the C extension is not built.
-
-\paragraph{scikit-learn API.}
-\begin{sloppypar}
-To support adoption in existing pipelines we provide two public functions. \texttt{geographic\_con\-nectivity} returns a binary sparse CSR matrix encoding the distance-band graph, compatible with scikit-learn's \texttt{connectivity} parameter and other graph-based spatial tools. \texttt{Sparse\-Agglo\-mera\-tive\-Clus\-tering} is a full estimator inheriting \texttt{Base\-Estimator} and \texttt{Cluster\-Mixin}, mirroring the \texttt{Agglomer\-ative\-Cluster\-ing} API: the user specifies \texttt{h\_max}, \texttt{distance\_thresh\-old}, \texttt{linkage}, and \texttt{metric}, then calls \texttt{fit(X)} to obtain \texttt{labels\_}, \texttt{n\_clusters\_}, and \texttt{n\_con\-nected\_com\-ponents\_}.
-\end{sloppypar}
-
-The implementation is available at \url{https://github.com/mine-the-gap/gshac} under the GPL-3.0 license.
-
-
 \section{Experimental design}
 \label{sec:expdesign}
+
+Implementation details --- the C-backed library stack, the two HAC code paths, CRS-aware distance dispatch, and the scikit-learn API --- are deferred to Appendix~\ref{sec:system} so as not to interrupt the path from theory to evaluation. The implementation is available at \url{https://github.com/mine-the-gap/gshac} under the GPL-3.0 license.
 
 We evaluate GSHAC along three research questions:
 
@@ -425,7 +400,7 @@ Clustered point clouds from a Gaussian mixture model: \(C\) centers placed unifo
 
 \emph{Iris dataset} We use the Iris dataset to provide a visual illustration of the correctness of GSHAC in comparison to dense HAC.
 
-\emph{Mining dataset} (\(n = 261{,}073\)). Global mining features (217,614 polygons, 43,459 points, WGS-84)~\cite{maus2026data}. Polygon features are reduced to their centroids as a preprocessing step; the algorithm operates on the resulting set of \((\text{lon}, \text{lat})\) coordinates, with geodesic (haversine) distances computed centroid-to-centroid. \(\hmax = 20\)\,km, cut heights \(H = \{1, 2, 5, 10, 20\}\)\,km.
+\emph{Mining dataset} (\(n = 261{,}073\)). Global mining features (217,614 polygons, 43,459 points, WGS-84)~\cite{maus2026data}. Polygon features are reduced to their centroids as a preprocessing step; the algorithm operates on the resulting set of \((\text{lon}, \text{lat})\) coordinates, with great-circle (haversine) distances computed centroid-to-centroid. \(\hmax = 20\)\,km, cut heights \(H = \{1, 2, 5, 10, 20\}\)\,km.
 
 \emph{GeoNames} (\(n = 2{,}000{,}000\)). Spatially stratified random sample (14.9\%) from the GeoNames \texttt{allCountries} database (\(n_{\text{full}} = 13{,}412{,}837\), CC~BY~4.0)~\cite{geonames2025}, using \(1^{\circ}\!\times\!1^{\circ}\) grid cells with proportional allocation. Haversine metric, \(\hmax \in \{1\,\text{km},\, 2\,\text{km},\, 5\,\text{km},\, 10\,\text{km},\, 20\,\text{km}\}\), single linkage.
 
@@ -540,7 +515,7 @@ GSHAC processes all \(n = 261{,}073\) mining features in \textbf{11.8\,s} (5.8\,
 
 \input{./tab_realworld.tex}
 
-The graph decomposes into 17,883 connected components (Table~\ref{tab:mining_components}). Cluster counts decrease from 173,910 at \(h = 1\)\,km to 17,883 at \(h = 20\)\,km, equal to the number of components, as expected. The distribution is strongly right-skewed: 7,891 singletons, median size~2, 99th percentile~151, with one large component of 30,179 features corresponding to a densely clustered mining district. Because single linkage uses the MST path (Section~\ref{sec:system}), no dense submatrix is formed, and the memory peaks at just 109\,MiB across all components, fitting comfortably on any modern laptop. 
+The graph decomposes into 17,883 connected components (Table~\ref{tab:mining_components}). Cluster counts decrease from 173,910 at \(h = 1\)\,km to 17,883 at \(h = 20\)\,km, equal to the number of components, as expected. The distribution is strongly right-skewed: 7,891 singletons, median size~2, 99th percentile~151, with one large component of 30,179 features corresponding to a densely clustered mining district. Because single linkage uses the MST path (Appendix~\ref{sec:system}), no dense submatrix is formed, and the memory peaks at just 109\,MiB across all components, fitting comfortably on any modern laptop. 
 
 \input{./tab_mining_components.tex}
 
@@ -630,5 +605,40 @@ Funded by the European Union. This work was supported by the European Research C
 % =======================================================================
 \bibliographystyle{ACM-Reference-Format}
 \bibliography{references}
+
+% =======================================================================
+\appendix
+
+\section{System architecture}
+\label{sec:system}
+
+The Python implementation is backed by C libraries for all computationally intensive operations:
+\begin{itemize}[leftmargin=*,topsep=2pt,itemsep=1pt]
+  \item \texttt{scipy.spatial.cKDTree} \cite{virtanen2020} for Euclidean range queries;\\ \texttt{sklearn.\allowbreak neighbors.\allowbreak BallTree} \cite{pedregosa2011sklearn} with the haversine metric for geodesic range queries.
+  \item \texttt{scipy.sparse.\allowbreak csr\_matrix} for the sparse distance graph.
+  \item \texttt{scipy.sparse.\allowbreak csgraph.\allowbreak connected\_\allowbreak components} for component decomposition.
+\end{itemize}
+
+\subsection{Input formats and CRS-aware dispatch}
+
+The implementation accepts input coordinates either as a raw \((n, 2)\) numeric array or as a \texttt{geopandas} \texttt{GeoSeries}/\texttt{GeoDataFrame}, with an optional explicit \texttt{crs=} argument for the array form. When CRS information is available, the system dispatches the distance metric automatically based on whether the CRS is geographic or projected, following the precedent of \texttt{sf::st\_distance} in R~\cite{pebesma2018sf}: ellipsoidal geodesic distance is the default for geographic CRS, computed via \texttt{pyproj.Geod.inv} on the WGS-84 ellipsoid; Euclidean distance is the default for projected CRS. The dispatch layer rejects metric/CRS combinations that would silently produce wrong results --- for instance, requesting \texttt{haversine} on projected coordinates, or \texttt{euclidean} on geographic coordinates, raises an error rather than evaluating distance on the wrong manifold.
+
+The default for geographic CRS is the ellipsoid rather than the sphere --- a deliberate departure from the s2-based default of \texttt{sf}. The motivation is correctness by default: clustering output of GSHAC is typically consumed by downstream maps, area summaries, or further analytical pipelines in which ellipsoidal correctness is a property the caller will assume rather than verify, and the absolute distance error of a spherical approximation compounds through subsequent area, length, and adjacency computations. The cost of this default is a constant-factor overhead in the distance-kernel stage of \texttt{spatial\_dist\_graph}: empirically about 1.0\(\times\) the C haversine kernel in sparse-graph regimes (\(\bar{k} \lesssim 10\), where the BallTree neighbour query dominates) and rising to \(\approx\!2.7\)--\(3.3\times\) in dense regimes (\(\bar{k}\) in the hundreds or thousands, where the distance kernel itself dominates). The asymptotic complexity is unchanged in both --- both paths are \(\Onotation{n \cdot k}\) --- so the constant-factor overhead is the price of correctness-by-default in this regime, and end users who require maximum throughput can opt back into the sphere.
+
+The spherical \emph{haversine} metric remains explicitly available as \texttt{metric="haversine"} and is the metric we use for the geographic benchmarks of Section~\ref{sec:results}. We make this choice for two reasons. First, none of the dense-HAC implementations we benchmark against --- \texttt{fastcluster}~\cite{mullner2013fastcluster}, \texttt{scipy.cluster.hierarchy}, and scikit-learn's \texttt{AgglomerativeClustering}~\cite{pedregosa2011sklearn} with sparse connectivity --- exposes a native ellipsoidal-distance kernel: a fair distance-kernel-for-distance-kernel comparison therefore requires both sides to use the same spherical formula on \((\text{lon}, \text{lat})\) inputs, which isolates the contribution of the sparse-graph algorithm from the contribution of the distance kernel. Second, haversine is the kernel used by prior versions of the GSHAC package and by the C extension \texttt{\_gshac.so}; using it here keeps the experimental numbers continuous with that prior work. The maximum distance error of haversine relative to the WGS-84 ellipsoid is bounded by \(\sim\!0.5\%\) (worst case near the poles for short east-west chords, an order of magnitude smaller at mid-latitudes), which is well below the precision relevant to clustering at the spatial thresholds we evaluate; on a representative clustered \((\text{lon}, \text{lat})\) dataset the resulting edge sets agree at \(100\%\) of haversine's edges with only \(\approx\!0.005\%\) additional boundary edges captured by the geodesic path, and the connected-component counts are identical.
+
+Polygon and other non-point geometries are not supported by the current API; users may pre-process them to representative points (e.g., centroids) before invoking the system. Extending GSHAC to non-point geometries would require an additional distance kernel for line/polygon pairs (Hausdorff or Frechet, as supported by \texttt{sf::st\_distance}); we leave this to future work.
+
+\subsection{Two HAC paths}
+\begin{sloppypar}
+For \emph{single linkage}, the system computes \texttt{scipy.sparse.\allowbreak csgraph.\allowbreak minimum\_\allowbreak spanning\_tree} on each component's sparse sub-matrix, then constructs the linkage matrix~\(Z\) via a union-find pass over the \(n_k - 1\) MST edges. This path is \(\Onotation{m_k \log m_k}\) time and \(\Onotation{n_k + m_k}\) memory~--- \emph{no dense matrix is formed}, regardless of component size. The resulting \(Z\) matrix is a standard scipy linkage matrix, supporting \texttt{fcluster} at any cut height \(h \le \hmax\) and full dendrogram visualisation. For \emph{other linkage methods} (complete, average, Ward): the dense sub-matrix is extracted per component via \texttt{scipy.spatial.\allowbreak distance.\allowbreak squareform} and passed to \texttt{fastcluster.\allowbreak linkage}~\cite{mullner2013fastcluster}, with \texttt{scipy.cluster.\allowbreak hierarchy.\allowbreak linkage} as a fallback when fastcluster is unavailable.
+\end{sloppypar}
+
+Only the orchestration layer (component iteration, label assignment) is pure Python; all spatial queries, matrix operations, and HAC computations are C-backed --- via scipy/sklearn libraries for spatial indexing and matrix operations, and via a dedicated C extension (\texttt{\_gshac.so}) that implements union-find linkage construction over MST edges, haversine distance computation, and batch threshold-based dendrogram cutting with GIL release. A pure-Python fallback is used when the C extension is not built.
+
+\subsection{scikit-learn API}
+\begin{sloppypar}
+To support adoption in existing pipelines we provide two public functions. \texttt{geographic\_con\-nectivity} returns a binary sparse CSR matrix encoding the distance-band graph, compatible with scikit-learn's \texttt{connectivity} parameter and other graph-based spatial tools. \texttt{Sparse\-Agglo\-mera\-tive\-Clus\-tering} is a full estimator inheriting \texttt{Base\-Estimator} and \texttt{Cluster\-Mixin}, mirroring the \texttt{Agglomer\-ative\-Cluster\-ing} API: the user specifies \texttt{h\_max}, \texttt{distance\_thresh\-old}, \texttt{linkage}, and \texttt{metric}, then calls \texttt{fit(X)} to obtain \texttt{labels\_}, \texttt{n\_clusters\_}, and \texttt{n\_con\-nected\_com\-ponents\_}.
+\end{sloppypar}
 
 \end{document}
