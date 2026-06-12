@@ -2,24 +2,29 @@
 \caption{Estimated resources for full GeoNames (\(n = 13{,}412{,}837\)).
   Graph rows: measured on full dataset (graph construction only).
   HAC rows: linearly extrapolated from 2M sample.
-  Hardware: AMD Ryzen~7 PRO 8840U, 30\,GB DDR5.}
+  Hardware: AMD Ryzen~7 PRO 8840U, 30\,GiB DDR5.}
 \label{tab:geonames_full}
 \small
-\begin{tabular}{lrrrrr}
+\setlength{\tabcolsep}{4pt}
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{l*{5}{>{\centering\arraybackslash}p{1.6cm}}}
 \toprule
+& \multicolumn{5}{c}{\(\hmax\)} \\
+\cmidrule(l){2-6}
 & \textbf{1\,km} & \textbf{2\,km} & \textbf{5\,km} & \textbf{10\,km} & \textbf{20\,km} \\
 \midrule
 Edges & 35.7M & 112.1M & --- & --- & --- \\
-Sparse storage & 571\,MB & 1.8\,GB & --- & --- & --- \\
+Sparse storage & 571\,MiB & 1.8\,GiB & --- & --- & --- \\
 Largest component & 439{,}465 & 593{,}273 & --- & --- & --- \\
 \addlinespace
 Graph time & 3.9\,min & 4.9\,min & --- & --- & --- \\
-Graph memory & 10.2\,GB & 26.8\,GB & --- & --- & --- \\
+Graph memory & 10.2\,GiB & 26.8\,GiB & --- & --- & --- \\
 \addlinespace
 HAC time (est.) & \(\sim\)11\,min & \(\sim\)17\,min & \(\sim\)13\,min & \(\sim\)6\,min & \(\sim\)7\,min \\
-HAC memory (est.) & \(\sim\)2.4\,GB & \(\sim\)2.9\,GB & \(\sim\)2.9\,GB & \(\sim\)7.2\,GB & \(\sim\)38.0\,GB \\
-\textbf{Total (est.)} & \textbf{\(\sim\)15\,min} & \textbf{\(\sim\)22\,min} & \textbf{needs 64\,GB} & \textbf{needs 256\,GB} & \textbf{infeasible} \\
+HAC memory (est.) & \(\sim\)2.4\,GiB & \(\sim\)2.9\,GiB & \(\sim\)2.9\,GiB & \(\sim\)7.2\,GiB & \(\sim\)38.0\,GiB \\
+\textbf{Total (est.)} & \textbf{\(\sim\)15\,min} & \textbf{\(\sim\)22\,min} & \textbf{needs 64\,GiB} & \textbf{needs 256\,GiB} & \textbf{infeasible} \\
 \bottomrule
-\multicolumn{6}{l}{\footnotesize Dashes denote full-dataset graph rows infeasible at \(\hmax \geq 5\)\,km on a 30\,GiB workstation; HAC rows are extrapolated from the 2M sample.} \\
-\end{tabular}
+\multicolumn{6}{l}{\footnotesize Dashes: full-dataset graph infeasible at \(\hmax \geq 5\)\,km on a 30\,GiB workstation; HAC rows extrapolated from 2M sample.} \\
+\end{tabular}%
+}
 \end{table}
