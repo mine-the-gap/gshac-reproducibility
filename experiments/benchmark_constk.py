@@ -73,8 +73,8 @@ def domain_for_k(n, h_max, k_target):
     return math.sqrt(n * math.pi * h_max**2 / k_target)
 
 
-def dense_feasible(n, max_gb=6.0):
-    return n * (n - 1) / 2 * 8 / 1e9 <= max_gb
+def dense_feasible(n, max_gib=6.0):
+    return n * (n - 1) / 2 * 8 / 1024 ** 3 <= max_gib
 
 
 def generate_uniform_points(n_total, domain_m, seed=42):
@@ -91,6 +91,25 @@ def measure(fn):
     _, peak = tracemalloc.get_traced_memory()
     tracemalloc.stop()
     return result, t1 - t0, peak / (1024 ** 2)
+
+
+def measure_pipeline(build_fn, run_fn):
+    """Graph build + HAC in ONE tracemalloc scope (single build): phase times
+    plus the whole-pipeline peak = max(graph-phase, hac-phase incl. resident
+    graph). Halves the work vs. building the graph twice per rep."""
+    gc.collect()
+    tracemalloc.start()
+    t0 = time.perf_counter()
+    graph = build_fn()
+    t_graph = time.perf_counter() - t0
+    _, peak_g = tracemalloc.get_traced_memory()
+    tracemalloc.reset_peak()
+    t1 = time.perf_counter()
+    result = run_fn(graph)
+    t_hac = time.perf_counter() - t1
+    _, peak_h = tracemalloc.get_traced_memory()
+    tracemalloc.stop()
+    return graph, result, t_graph, t_hac, max(peak_g, peak_h) / (1024 ** 2)
 
 
 # ------------------------------------------------------------------
@@ -137,26 +156,19 @@ if __name__ == "__main__":
                     dense_mems.append(dm)
                     gc.collect()
 
-                graph, gt, _ = measure(lambda: spatial_dist_graph(pts, H_MAX))
-                _, ht, _ = measure(lambda: sparse_hclust(graph, h_cuts, METHOD))
+                graph, _res, gt, ht, sm = measure_pipeline(
+                    lambda: spatial_dist_graph(pts, H_MAX),
+                    lambda g: sparse_hclust(g, h_cuts, METHOD))
                 graph_times.append(gt)
                 hac_times.append(ht)
                 sparse_times.append(gt + ht)
+                sparse_mems.append(sm)
 
                 if rep == 0:
                     n_edges_val = graph["n_edges"]
                     mean_k_val = round(2 * n_edges_val / n, 1)
 
-                del graph
-                gc.collect()
-
-                def run_sparse_mem():
-                    g2 = spatial_dist_graph(pts, H_MAX)
-                    res = sparse_hclust(g2, h_cuts, METHOD)
-                    return res
-
-                _, _, sm = measure(run_sparse_mem)
-                sparse_mems.append(sm)
+                del graph, _res
                 gc.collect()
 
             row = {
@@ -200,6 +212,37 @@ if __name__ == "__main__":
 
     f_out.close()
     print(f"\nResults written to {out_path}")
+
+    # ------------------------------------------------------------------
+    # Fitted log-log slopes per k_target (committed so the manuscript's
+    # slope-invariance numbers are reproducible, not hand-computed)
+    # ------------------------------------------------------------------
+    slope_rows = []
+    for k in K_TARGETS:
+        rk = sorted([r for r in rows if r["k_target"] == k], key=lambda r: r["n"])
+        nk = np.array([r["n"] for r in rk], dtype=float)
+        tk = np.array([r["sparse_time_mean"] for r in rk], dtype=float)
+        mk = np.array([r["sparse_mem_mean"] for r in rk], dtype=float)
+        ok = tk > 0
+        slope_t = float(np.polyfit(np.log(nk[ok]), np.log(tk[ok]), 1)[0])
+        slope_m = float(np.polyfit(np.log(nk[ok]), np.log(mk[ok]), 1)[0])
+        slope_rows.append({
+            "k_target":   k,
+            "is_primary": int(k == PRIMARY_K),
+            "slope_time": round(slope_t, 3),
+            "slope_mem":  round(slope_m, 3),
+            "n_min":      int(nk.min()),
+            "n_max":      int(nk.max()),
+        })
+    slopes_out = os.path.join(RESULTS_DIR, "benchmark_constk_slopes.csv")
+    with open(slopes_out, "w", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=slope_rows[0].keys())
+        w.writeheader()
+        w.writerows(slope_rows)
+    print(f"Slopes written to {slopes_out}")
+    for s in slope_rows:
+        print(f"  k={s['k_target']:>3}: time n^{s['slope_time']}, mem n^{s['slope_mem']}"
+              + ("  (primary)" if s["is_primary"] else ""))
 
     # ------------------------------------------------------------------
     # Figure: multi-k slope invariance

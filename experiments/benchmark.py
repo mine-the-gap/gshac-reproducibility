@@ -102,14 +102,36 @@ def measure(fn):
     return result, t1 - t0, peak / (1024 ** 2)
 
 
-def dense_feasible(n, max_gb=6.0):
+def dense_feasible(n, max_gib=6.0):
     """Check if the condensed distance matrix fits in memory.
 
-    max_gb covers the condensed vector only; fastcluster needs additional
+    max_gib covers the condensed vector only; fastcluster needs additional
     working memory, so keep well below physical RAM (30 GiB).
     """
-    condensed_gb = n * (n - 1) / 2 * 8 / 1e9
-    return condensed_gb <= max_gb
+    condensed_gib = n * (n - 1) / 2 * 8 / 1024 ** 3
+    return condensed_gib <= max_gib
+
+
+def measure_pipeline(build_fn, run_fn):
+    """Graph build + HAC in ONE tracemalloc scope (single build).
+
+    Returns (graph, result, t_graph, t_hac, pipeline_peak_mib). The peak equals
+    the old separate combined-scope measurement: max(graph-phase peak, hac-phase
+    peak incl. the resident graph), via reset_peak() between phases.
+    """
+    gc.collect()
+    tracemalloc.start()
+    t0 = time.perf_counter()
+    graph = build_fn()
+    t_graph = time.perf_counter() - t0
+    _, peak_g = tracemalloc.get_traced_memory()
+    tracemalloc.reset_peak()
+    t1 = time.perf_counter()
+    result = run_fn(graph)
+    t_hac = time.perf_counter() - t1
+    _, peak_h = tracemalloc.get_traced_memory()
+    tracemalloc.stop()
+    return graph, result, t_graph, t_hac, max(peak_g, peak_h) / (1024 ** 2)
 
 
 # ------------------------------------------------------------------
@@ -176,29 +198,22 @@ for scenario_name, scenario_cfg in SCENARIOS.items():
                     dense_mems.append(dm)
                     gc.collect()
 
-                # Sparse — time each phase separately
-                graph, gt, _ = measure(lambda: spatial_dist_graph(pts, h_max))
-                _,     ht, _ = measure(lambda: sparse_hclust(graph, H_CUTS, METHOD))
+                # Sparse — graph + HAC in ONE tracemalloc scope (single build):
+                # phase times AND whole-pipeline peak from one pass, halving the
+                # work vs. building the graph twice (timing + memory) per rep.
+                graph, _res, gt, ht, sm = measure_pipeline(
+                    lambda: spatial_dist_graph(pts, h_max),
+                    lambda g: sparse_hclust(g, H_CUTS, METHOD))
                 graph_times.append(gt)
                 hac_times.append(ht)
                 sparse_times.append(gt + ht)
+                sparse_mems.append(sm)
 
                 if rep == 0:
                     n_edges_val = graph["n_edges"]
                     density_val = graph["density"]
 
-                # Free graph before measuring memory (avoid two graphs in RAM)
-                del graph
-                gc.collect()
-
-                # Peak memory measured over the complete pipeline
-                def run_sparse_mem():
-                    g2 = spatial_dist_graph(pts, h_max)
-                    res = sparse_hclust(g2, H_CUTS, METHOD)
-                    return res  # don't return g2 — let it be freed
-
-                _, _, sm = measure(run_sparse_mem)
-                sparse_mems.append(sm)
+                del graph, _res
                 gc.collect()
 
                 # Save per-rep data
@@ -564,13 +579,15 @@ K_MEAN_RW = 57.8
 H_MAX_RW  = 20_000   # metres
 
 m_rw = int(N_RW * K_MEAN_RW / 2)
-sparse_matrix_mb = m_rw * 2 * 8 / 1e6     # upper + lower triangle, float64
-dense_matrix_gb  = N_RW ** 2 * 8 / 1e9    # full n×n, float64
+sparse_matrix_mib   = m_rw * 2 * 8 / 1024 ** 2     # upper + lower triangle, float64
+dense_full_gib      = N_RW ** 2 * 8 / 1024 ** 3    # full n x n, float64
+dense_condensed_gib = N_RW * (N_RW - 1) / 2 * 8 / 1024 ** 3
 
 print(f"n = {N_RW:,}")
 print(f"Estimated edges m ~ {m_rw:,}  (mean k = {K_MEAN_RW})")
-print(f"Sparse matrix memory:  ~{sparse_matrix_mb:.0f} MB")
-print(f"Dense matrix memory:   ~{dense_matrix_gb:.0f} GB  (infeasible on workstations)")
+print(f"Sparse matrix memory:  ~{sparse_matrix_mib:.0f} MiB")
+print(f"Dense matrix memory:   ~{dense_full_gib:.0f} GiB full / "
+      f"{dense_condensed_gib:.0f} GiB condensed  (infeasible on workstations)")
 
 ref = [r for r in rows
        if r["scenario"] == "tight" and r["h_max_km"] == 20.0 and r["n"] == 10_000]
@@ -591,7 +608,8 @@ if ref_dense:
     t_dense_ref = ref_dense[0]["dense_time_mean"]
     t_dense_rw  = t_dense_ref * (N_RW / 10_000) ** 2
     print(f"  ~{t_dense_rw/3600:.1f} hours  (O(n^2) extrapolation from n=10k)")
-    print(f"  Memory: ~{dense_matrix_gb:.0f} GB  → not feasible on any workstation")
+    print(f"  Memory: ~{dense_full_gib:.0f} GiB full / {dense_condensed_gib:.0f} GiB condensed"
+          f"  -> not feasible on any workstation")
 
 # ------------------------------------------------------------------
 # PySAL DistanceBand graph construction comparison

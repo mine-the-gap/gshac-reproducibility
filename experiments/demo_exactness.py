@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import os
 import sys
+import csv
 import numpy as np
 import matplotlib
 matplotlib.use("Agg")
@@ -31,7 +32,9 @@ from scipy.sparse.csgraph import minimum_spanning_tree as _mst
 
 _ROOT = os.path.join(os.path.dirname(__file__), "..")
 FIGURES_DIR = os.path.join(_ROOT, "figures")
+RESULTS_DIR = os.path.join(_ROOT, "results")
 os.makedirs(FIGURES_DIR, exist_ok=True)
+os.makedirs(RESULTS_DIR, exist_ok=True)
 
 # ------------------------------------------------------------------
 # Load data
@@ -86,6 +89,7 @@ ari = adjusted_rand_score(l_dense, l_gshac)
 print(f"\nAt h={h_cut}: dense={n_cl_dense} clusters, GSHAC={n_cl_gshac} clusters, ARI={ari:.4f}")
 
 # Verify at multiple cuts
+cut_rows = []
 print(f"\nPartition equivalence at all h <= h_max:")
 for h in [0.3, 0.5, 0.7, 1.0]:
     r_d = dense_hclust(X, [h], method="single")
@@ -93,6 +97,8 @@ for h in [0.3, 0.5, 0.7, 1.0]:
     a = adjusted_rand_score(r_d["labels"][h], r_s["labels"][h])
     nd = len(np.unique(r_d["labels"][h]))
     ns = len(np.unique(r_s["labels"][h]))
+    cut_rows.append({"h": h, "n_clusters_dense": nd,
+                     "n_clusters_gshac": ns, "ari": round(float(a), 6)})
     print(f"  h={h}: dense={nd:>3}, GSHAC={ns:>3}, ARI={a:.4f}")
 
 # ------------------------------------------------------------------
@@ -109,6 +115,23 @@ largest_idx = np.where(comp_labels == largest_comp)[0]
 largest_size = len(largest_idx)
 
 print(f"\nLargest component: {largest_size} points (of {n})")
+
+# Commit every reported figure to CSV (nothing lives only in prose/console).
+_csv_path = os.path.join(RESULTS_DIR, "demo_exactness.csv")
+_fields = ["h", "n_clusters_dense", "n_clusters_gshac", "ari",
+           "n", "n_features", "h_max", "n_edges", "total_pairs",
+           "density_pct", "n_components", "largest_component"]
+with open(_csv_path, "w", newline="") as _f:
+    _w = csv.DictWriter(_f, fieldnames=_fields)
+    _w.writeheader()
+    for _cr in cut_rows:
+        _w.writerow({**_cr,
+                     "n": n, "n_features": X.shape[1], "h_max": h_max,
+                     "n_edges": n_edges, "total_pairs": total_pairs,
+                     "density_pct": round(density_pct, 2),
+                     "n_components": int(g["n_components"]),
+                     "largest_component": largest_size})
+print(f"Saved {_csv_path}")
 
 # GSHAC Z for largest component
 sub_csr = mat[np.ix_(largest_idx, largest_idx)].tocsr()

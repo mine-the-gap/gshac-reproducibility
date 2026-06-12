@@ -8,6 +8,7 @@ data/
 CONTEXT.md
 plan_* 
 session-state.md
+tty*
 
 # LaTeX build artifacts
 paper/*.aux

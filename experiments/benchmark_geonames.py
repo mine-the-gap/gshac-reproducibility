@@ -1,23 +1,25 @@
 """
 benchmark_geonames.py
 
-Spatially stratified 2M-point sample from GeoNames allCountries
-(n_full ~ 13.4M), benchmarked across h_max = 1 km / 2 km / 5 km / 10 km / 20 km.
+Scalability benchmark of sparse single-linkage HAC on a spatially stratified
+2M-point sample of GeoNames allCountries (n_full ~ 13.4M), across
+h_max = 1 km / 5 km / 10 km / 20 km. The 20 km threshold sits at the memory
+limit of a 30 GiB workstation and is the headline scalability result.
 
 Phases:
-  1. Parse GeoNames (allCountries.txt must exist in data/)
-  2. Draw a 2M spatially-stratified random sample (1° x 1° grid, proportional)
-  3. For each h_max: build sparse graph + run single-linkage HAC
-     - HAC is skipped (feasibility note written) if max-component dense
-       sub-matrix would exceed MAX_SUBMAT_GB
+  1. Download + parse GeoNames allCountries.txt (cached in data/)
+  2. Draw a 2M spatially-stratified random sample (1 deg x 1 deg grid, proportional)
+  3. For each h_max: build sparse graph + run single-linkage HAC, N_REP times,
+     reporting mean +/- sd for timing and for three memory figures (graph-phase
+     peak, HAC working memory, and whole-pipeline peak), all in binary MiB.
   4. Write results/benchmark_geonames.csv
 
-Run explore_geonames.py first to download and unzip allCountries.txt.
+This script is self-contained: it downloads allCountries.txt on first run.
 """
 
 from __future__ import annotations
 
-import sys, time, tracemalloc, csv, gc
+import sys, os, time, gc, tracemalloc, csv, urllib.request, zipfile
 import numpy as np
 from pathlib import Path
 
@@ -28,22 +30,77 @@ ROOT        = Path(__file__).parent.parent
 DATA_DIR    = ROOT / "data"
 RESULTS_DIR = ROOT / "results"
 TXT_PATH    = DATA_DIR / "allCountries.txt"
+ZIP_PATH    = DATA_DIR / "geonames_allCountries.zip"
+ZIP_URL     = "https://download.geonames.org/export/dump/allCountries.zip"
+DATA_DIR.mkdir(exist_ok=True)
+RESULTS_DIR.mkdir(exist_ok=True)
 
 N_SAMPLE     = 2_000_000
+N_FULL_REF   = 13_412_837                          # for context only (no extrapolation)
 RANDOM_SEED  = 42
-H_MAX_VALS   = [1_000, 2_000, 5_000, 10_000, 20_000]   # metres
-H_CUT_FRAC   = 1.0   # h_cut = h_max (single cut per run)
-MAX_SUBMAT_GB = 20.0  # skip HAC if largest-component sub-matrix exceeds this
+H_MAX_VALS   = [1_000, 5_000, 10_000, 20_000]      # metres (2 km dropped)
+N_REP        = 5
+
+_MIB = 1024 ** 2
+_GIB = 1024 ** 3
 
 
-def measure(fn):
+# ------------------------------------------------------------------
+# Two-phase pipeline measurement (single build; graph + HAC + whole-run peaks)
+# ------------------------------------------------------------------
+
+def measure_pipeline(build_fn, run_fn):
+    """Measure build-then-run in ONE tracemalloc scope. See benchmark_mining.py
+    for the rationale. Returns (graph, result, metrics) in MiB / seconds."""
+    gc.collect()
     tracemalloc.start()
+
     t0 = time.perf_counter()
-    result = fn()
-    elapsed = time.perf_counter() - t0
-    _, peak = tracemalloc.get_traced_memory()
+    graph = build_fn()
+    t_graph = time.perf_counter() - t0
+    cur_after_graph, peak_graph = tracemalloc.get_traced_memory()
+
+    tracemalloc.reset_peak()
+    t1 = time.perf_counter()
+    result = run_fn(graph)
+    t_hac = time.perf_counter() - t1
+    _, peak_during_hac = tracemalloc.get_traced_memory()
     tracemalloc.stop()
-    return result, elapsed, peak / (1024 ** 2)
+
+    metrics = {
+        "t_graph": t_graph,
+        "t_hac": t_hac,
+        "t_total": t_graph + t_hac,
+        "graph_mem": peak_graph / _MIB,
+        "hac_mem": (peak_during_hac - cur_after_graph) / _MIB,
+        "pipeline_mem": max(peak_graph, peak_during_hac) / _MIB,
+    }
+    return graph, result, metrics
+
+
+def _mean_sd(xs):
+    return round(float(np.mean(xs)), 4), round(float(np.std(xs, ddof=1)), 4)
+
+
+# ------------------------------------------------------------------
+# 0. Download (self-contained; cached)
+# ------------------------------------------------------------------
+
+def download_geonames():
+    if TXT_PATH.exists():
+        print(f"  Using cached {TXT_PATH}  ({TXT_PATH.stat().st_size/_MIB:.0f} MiB)")
+        return
+    if not ZIP_PATH.exists():
+        print(f"  Downloading {ZIP_URL} ...")
+        def progress(count, block, total):
+            pct = count * block / total * 100
+            print(f"\r  {pct:.1f}%", end="", flush=True)
+        urllib.request.urlretrieve(ZIP_URL, ZIP_PATH, reporthook=progress)
+        print()
+    print("  Extracting ...")
+    with zipfile.ZipFile(ZIP_PATH, "r") as zf:
+        zf.extract("allCountries.txt", DATA_DIR)
+    print(f"  Extracted to {TXT_PATH}  ({TXT_PATH.stat().st_size/_MIB:.0f} MiB)")
 
 
 # ------------------------------------------------------------------
@@ -54,37 +111,27 @@ def load_coords():
     print(f"Parsing {TXT_PATH} ...")
     t0 = time.perf_counter()
     df = pd.read_csv(
-        TXT_PATH,
-        sep="\t",
-        header=None,
-        usecols=[4, 5],
-        names=["lat", "lon"],
-        dtype={"lat": "float32", "lon": "float32"},
-        on_bad_lines="skip",
-        engine="c",
+        TXT_PATH, sep="\t", header=None, usecols=[4, 5],
+        names=["lat", "lon"], dtype={"lat": "float32", "lon": "float32"},
+        on_bad_lines="skip", engine="c",
     )
-    elapsed = time.perf_counter() - t0
-    print(f"  {len(df):,} features in {elapsed:.1f} s")
+    print(f"  {len(df):,} features in {time.perf_counter()-t0:.1f} s")
     return df
 
 
 # ------------------------------------------------------------------
-# 2. Spatially stratified sample
+# 2. Spatially stratified sample (1 deg x 1 deg grid, proportional allocation)
 # ------------------------------------------------------------------
 def stratified_sample(df, n_sample, seed=42):
-    """
-    Draw n_sample rows from df using 1° x 1° grid cells as strata.
-    Proportional allocation; O(n log n) via numpy argsort — no Python
-    loop over individual rows.
-    Returns a (n_sample, 2) float32 array of (lon, lat).
-    """
+    """Draw n_sample rows using 1 deg x 1 deg grid cells as strata with
+    proportional (largest-remainder) allocation. Returns (n_sample, 2)
+    float32 array of (lon, lat)."""
     rng = np.random.default_rng(seed)
     n_full = len(df)
 
     cell_id = (np.floor(df["lon"].to_numpy()).astype(np.int32) * 200
                + np.floor(df["lat"].to_numpy()).astype(np.int32))
 
-    # Sort by cell; get group boundaries
     sort_idx    = np.argsort(cell_id, kind="stable")
     sorted_c    = cell_id[sort_idx]
     _, g_start  = np.unique(sorted_c, return_index=True)
@@ -92,7 +139,6 @@ def stratified_sample(df, n_sample, seed=42):
     g_sizes     = g_end - g_start
     n_cells     = len(g_start)
 
-    # Proportional allocation with largest-remainder rounding
     alloc_f   = g_sizes / n_full * n_sample
     alloc     = np.floor(alloc_f).astype(np.int64)
     shortfall = int(n_sample - alloc.sum())
@@ -101,18 +147,14 @@ def stratified_sample(df, n_sample, seed=42):
     alloc[topup] += 1
 
     print(f"  Stratified sample: {n_cells:,} cells, "
-          f"target {n_sample:,} / {n_full:,} "
-          f"({n_sample/n_full*100:.1f}%)")
+          f"target {n_sample:,} / {n_full:,} ({n_sample/n_full*100:.1f}%)")
 
-    # One Python loop over cells (n_cells ~ 16k, fast)
     selected = []
     for start, end, k in zip(g_start, g_end, alloc):
         if k == 0:
             continue
         pool = sort_idx[start:end]
-        chosen = rng.choice(pool, size=min(int(k), len(pool)), replace=False)
-        selected.append(chosen)
-
+        selected.append(rng.choice(pool, size=min(int(k), len(pool)), replace=False))
     sel_idx = np.concatenate(selected)
     coords  = df[["lon", "lat"]].to_numpy(dtype=np.float32)[sel_idx]
     print(f"  Sampled {len(coords):,} features")
@@ -120,105 +162,102 @@ def stratified_sample(df, n_sample, seed=42):
 
 
 # ------------------------------------------------------------------
-# 3. Benchmark loop
+# 3. Benchmark one threshold (N_REP repetitions)
 # ------------------------------------------------------------------
-def run_benchmark(coords, h_max_m, dense_gb_full):
+def run_benchmark(coords, h_max_m):
     n = len(coords)
-    h_cut = h_max_m  # cut at h_max
+    h_cut = h_max_m  # single cut at h_max
 
     print(f"\n{'='*55}")
-    print(f"h_max = {h_max_m:,} m  (n = {n:,})")
+    print(f"h_max = {h_max_m:,} m  (n = {n:,}),  {N_REP} reps")
     print(f"{'='*55}")
 
-    # Graph
-    print("  Building sparse graph ...")
-    graph, t_graph, mem_graph = measure(
-        lambda: spatial_dist_graph(coords, h_max_m, metric="haversine")
-    )
+    graph_times, hac_times, total_times = [], [], []
+    graph_mems, hac_mems, pipeline_mems = [], [], []
 
-    n_edges      = graph["n_edges"]
-    n_components = graph["n_components"]
-    comp_labels  = graph["components"]
-    comp_sizes   = np.bincount(comp_labels)
-    mean_k       = 2 * n_edges / n
-    sparse_mb    = n_edges * 2 * 8 / 1e6
-    dense_gb_n   = n ** 2 * 8 / 1e9
-    max_c        = int(comp_sizes.max())
-    max_sub_gb   = max_c ** 2 * 8 / 1e9
+    n_edges = n_components = max_c = n_singletons = None
+    comp_sizes = None
+    n_clusters = None
 
-    print(f"  Graph: {t_graph:.1f} s  |  peak {mem_graph:.0f} MiB")
-    print(f"  Edges: {n_edges:,}  (mean k = {mean_k:.1f})")
-    print(f"  Sparse: {sparse_mb:.0f} MB  vs  dense n²: {dense_gb_n:.1f} GB  ({dense_gb_n/sparse_mb*1000:.0f}×)")
-    print(f"  Components: {n_components:,}  |  max size: {max_c:,}")
-    for p in [50, 90, 99]:
-        print(f"    p{p}: {int(np.percentile(comp_sizes, p)):,}")
-    print(f"    singletons: {(comp_sizes==1).sum():,}  ({(comp_sizes==1).mean()*100:.1f}%)")
-    print(f"  Largest-component sub-matrix: {max_sub_gb:.1f} GB")
-
-    # HAC feasibility — MST-based single linkage never forms the dense
-    # sub-matrix, so the size check only applies to non-single methods.
-    linkage_method = "single"
-    if max_sub_gb > MAX_SUBMAT_GB and linkage_method != "single":
-        print(f"  HAC SKIPPED: max sub-matrix {max_sub_gb:.1f} GB > {MAX_SUBMAT_GB} GB limit")
-        hac_feasible  = False
-        t_hac         = float("nan")
-        mem_hac       = float("nan")
-        n_clusters    = None
-        hac_note      = f"skipped: max component sub-matrix {max_sub_gb:.1f} GB"
-    else:
-        if max_sub_gb > MAX_SUBMAT_GB:
-            print(f"  Note: max sub-matrix {max_sub_gb:.1f} GB, but MST path avoids dense allocation")
-        print(f"  Running sparse HAC ({linkage_method} linkage, h_cut = {h_cut} m) ...")
-        result, t_hac, mem_hac = measure(
-            lambda: sparse_hclust(graph, [h_cut], method=linkage_method)
+    for rep in range(N_REP):
+        graph, result, m = measure_pipeline(
+            lambda: spatial_dist_graph(coords, h_max_m, metric="haversine"),
+            lambda g: sparse_hclust(g, [h_cut], method="single"),
         )
-        n_clusters   = int(np.unique(result["labels"][h_cut]).size)
-        hac_feasible = True
-        hac_note     = "ok (MST path)" if max_sub_gb > MAX_SUBMAT_GB else "ok"
-        print(f"  HAC: {t_hac:.1f} s  |  peak {mem_hac:.0f} MiB")
-        print(f"  Clusters at h_cut={h_cut} m: {n_clusters:,}")
+        graph_times.append(m["t_graph"]);   hac_times.append(m["t_hac"])
+        total_times.append(m["t_total"])
+        graph_mems.append(m["graph_mem"]);  hac_mems.append(m["hac_mem"])
+        pipeline_mems.append(m["pipeline_mem"])
 
-    t_total  = t_graph + (t_hac if hac_feasible else 0)
-    print(f"  Total time: {t_total:.1f} s  ({t_total/60:.1f} min)")
+        if rep == 0:
+            n_edges      = graph["n_edges"]
+            n_components = graph["n_components"]
+            comp_sizes   = np.bincount(graph["components"])
+            max_c        = int(comp_sizes.max())
+            n_singletons = int((comp_sizes == 1).sum())
+            n_clusters   = int(np.unique(result["labels"][h_cut]).size)
 
-    # Extrapolation to full dataset (n_full = 13.4M)
-    n_full     = 13_412_837
-    scale      = n_full / n
-    t_full_est = t_total * scale  # rough linear estimate
-    sparse_mb_full_est = sparse_mb * scale
-    print(f"\n  --- Extrapolation to full n={n_full:,} ---")
-    print(f"  Dense matrix:  {dense_gb_full:.0f} TB  (reference; infeasible)")
-    print(f"  Sparse (est):  {sparse_mb_full_est/1e3:.0f} GB  (linear scale)")
-    print(f"  Time est.:     {t_full_est:.0f} s  ({t_full_est/60:.1f} min)")
+        print(f"  rep {rep+1}/{N_REP}:  graph {m['t_graph']:.1f}s / {m['graph_mem']:.0f} MiB"
+              f"  |  HAC {m['t_hac']:.1f}s / {m['hac_mem']:.0f} MiB"
+              f"  |  pipeline peak {m['pipeline_mem']:.0f} MiB")
+
+        # Critical: free the (large) graph before the next repetition.
+        del graph, result
+        gc.collect()
+
+    mean_k = 2 * n_edges / n
+
+    gt_mean, gt_sd = _mean_sd(graph_times)
+    ht_mean, ht_sd = _mean_sd(hac_times)
+    tt_mean, tt_sd = _mean_sd(total_times)
+    gm_mean, gm_sd = _mean_sd(graph_mems)
+    hm_mean, hm_sd = _mean_sd(hac_mems)
+    pm_mean, pm_sd = _mean_sd(pipeline_mems)
+
+    # Analytical sizes (binary; full AND condensed)
+    sparse_mib            = n_edges * 2 * 8 / _MIB
+    dense_full_gib        = n ** 2 * 8 / _GIB
+    dense_condensed_gib   = n * (n - 1) / 2 * 8 / _GIB
+    max_sub_full_gib      = max_c ** 2 * 8 / _GIB
+    max_sub_condensed_gib = max_c * (max_c - 1) / 2 * 8 / _GIB
+
+    print(f"  Edges: {n_edges:,}  (mean k = {mean_k:.1f})  |  components {n_components:,}"
+          f"  |  max comp {max_c:,}")
+    print(f"  Graph {gt_mean:.1f}s / {gm_mean:.0f} MiB  |  HAC {ht_mean:.1f}s / {hm_mean:.0f} MiB"
+          f"  |  total {tt_mean:.1f}s  |  pipeline peak {pm_mean:.0f} MiB")
+    print(f"  Largest-component dense sub-matrix avoided: "
+          f"{max_sub_full_gib:.1f} GiB (full) / {max_sub_condensed_gib:.1f} GiB (condensed)")
 
     return {
         "n_sample":       n,
-        "n_full":         n_full,
+        "n_full":         N_FULL_REF,
         "h_max_m":        h_max_m,
-        "h_cut_m":        h_cut if hac_feasible else "",
+        "h_cut_m":        h_cut,
         "metric":         "haversine",
-        "linkage":        "single" if hac_feasible else "",
+        "linkage":        "single",
+        "n_reps":         N_REP,
         "n_edges":        n_edges,
         "mean_k":         round(mean_k, 2),
-        "sparse_mb":      round(sparse_mb, 1),
-        "dense_gb_sample": round(dense_gb_n, 1),
-        "dense_tb_full":  round(dense_gb_full / 1e3, 0),
+        "sparse_mib":     round(sparse_mib, 1),
+        "dense_full_gib_sample":      round(dense_full_gib, 1),
+        "dense_condensed_gib_sample": round(dense_condensed_gib, 1),
         "n_components":   n_components,
         "comp_p50":       int(np.percentile(comp_sizes, 50)),
         "comp_p90":       int(np.percentile(comp_sizes, 90)),
         "comp_p99":       int(np.percentile(comp_sizes, 99)),
         "comp_max":       max_c,
-        "n_singletons":   int((comp_sizes == 1).sum()),
-        "max_sub_gb":     round(max_sub_gb, 2),
-        "graph_time_s":   round(t_graph, 1),
-        "graph_mem_mib":  round(mem_graph, 0),
-        "hac_time_s":     round(t_hac, 1) if hac_feasible else "",
-        "hac_mem_mib":    round(mem_hac, 0) if hac_feasible else "",
-        "total_time_s":   round(t_total, 1),
-        "n_clusters":     n_clusters if hac_feasible else "",
-        "hac_note":       hac_note,
-        "t_full_est_s":   round(t_full_est, 0),
-        "sparse_mb_full_est": round(sparse_mb_full_est, 0),
+        "n_singletons":   n_singletons,
+        "max_sub_full_gib":      round(max_sub_full_gib, 2),
+        "max_sub_condensed_gib": round(max_sub_condensed_gib, 2),
+        # Timings (s) — mean / sd
+        "graph_time_s":    gt_mean, "graph_time_s_sd": gt_sd,
+        "hac_time_s":      ht_mean, "hac_time_s_sd":   ht_sd,
+        "total_time_s":    tt_mean, "total_time_s_sd": tt_sd,
+        # Memory (MiB, binary) — mean / sd
+        "graph_mem_mib":     round(gm_mean, 1), "graph_mem_mib_sd":     round(gm_sd, 1),
+        "hac_mem_mib":       round(hm_mean, 1), "hac_mem_mib_sd":       round(hm_sd, 1),
+        "pipeline_mem_mib":  round(pm_mean, 1), "pipeline_mem_mib_sd":  round(pm_sd, 1),
+        "n_clusters":     n_clusters,
     }
 
 
@@ -227,30 +266,20 @@ def run_benchmark(coords, h_max_m, dense_gb_full):
 # ------------------------------------------------------------------
 if __name__ == "__main__":
     print("=" * 60)
-    print(f"GeoNames benchmark  ({N_SAMPLE/1e6:.0f}M-point stratified sample)")
+    print(f"GeoNames benchmark  ({N_SAMPLE/1e6:.0f}M-point stratified sample, {N_REP} reps)")
     print("=" * 60)
 
-    if not TXT_PATH.exists():
-        print(f"ERROR: {TXT_PATH} not found. Run explore_geonames.py first.")
-        sys.exit(1)
-
+    download_geonames()
     df = load_coords()
-    n_full = len(df)
-    dense_gb_full = n_full ** 2 * 8 / 1e9
-
     coords_sample = stratified_sample(df, N_SAMPLE, seed=RANDOM_SEED)
-    del df            # free the pandas DataFrame
-    gc.collect()      # force immediate reclamation before graph construction
+    del df
+    gc.collect()
 
     print(f"\nCoordinate range: lon [{coords_sample[:,0].min():.1f}, {coords_sample[:,0].max():.1f}]"
           f"  lat [{coords_sample[:,1].min():.1f}, {coords_sample[:,1].max():.1f}]")
 
-    results = []
-    for h_max in H_MAX_VALS:
-        r = run_benchmark(coords_sample, h_max, dense_gb_full)
-        results.append(r)
+    results = [run_benchmark(coords_sample, h_max) for h_max in H_MAX_VALS]
 
-    # Write CSV
     out = RESULTS_DIR / "benchmark_geonames.csv"
     with open(out, "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=results[0].keys())

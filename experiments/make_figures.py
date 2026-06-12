@@ -115,6 +115,7 @@ def make_scenario_figure(out_path):
 
     fig, axes = plt.subplots(1, 3, figsize=(7.16, 3.0))
 
+    scenario_stats = []
     for ax, (label, cfg) in zip(axes, SCENARIOS):
         spread_m = cfg["spread_factor"] * h_max
         pts = generate_clustered_points(
@@ -126,6 +127,17 @@ def make_scenario_figure(out_path):
 
         mean_k = 2 * len(pairs) / n
         graph_pct = 2 * len(pairs) / (n * (n - 1)) * 100
+        scenario_stats.append({
+            "scenario":      label,
+            "n":             n,
+            "h_max_km":      h_max / 1000,
+            "domain_km":     domain_m / 1000,
+            "n_centres":     cfg["n_centres"],
+            "spread_factor": cfg["spread_factor"],
+            "n_edges":       int(len(pairs)),
+            "mean_k":        round(mean_k, 1),
+            "density_pct":   round(graph_pct, 1),
+        })
 
         # Convert to km
         pts_km = pts / 1000
@@ -177,6 +189,14 @@ def make_scenario_figure(out_path):
     fig.savefig(out_path, bbox_inches="tight")
     plt.close(fig)
     print(f"Saved {out_path}")
+
+    # Commit the illustration's k-bar/density figures (reported in the caption).
+    _stats_csv = os.path.join(RESULTS_DIR, "scenario_illustration.csv")
+    with open(_stats_csv, "w", newline="") as _f:
+        _w = csv.DictWriter(_f, fieldnames=scenario_stats[0].keys())
+        _w.writeheader()
+        _w.writerows(scenario_stats)
+    print(f"Saved {_stats_csv}")
 
 
 # =====================================================================
@@ -301,7 +321,8 @@ def _load_rw_points():
             "label": _label(n),
             "n": n,
             "time": float(m["total_time_s"]),
-            "mem": max(float(m["graph_mem_mib"]), float(m["hac_mem_mib"])),
+            "mem": (float(m["pipeline_mem_mib"]) if "pipeline_mem_mib" in m
+                    else max(float(m["graph_mem_mib"]), float(m["hac_mem_mib"]))),
             "t_ofs": (1, 6),
             "m_ofs": (1, 6),
         })
@@ -315,7 +336,8 @@ def _load_rw_points():
                     "label": _label(n),
                     "n": n,
                     "time": float(r["total_time_s"]),
-                    "mem": max(float(r["graph_mem_mib"]), float(r["hac_mem_mib"])),
+                    "mem": (float(r["pipeline_mem_mib"]) if "pipeline_mem_mib" in r
+                            else max(float(r["graph_mem_mib"]), float(r["hac_mem_mib"]))),
                     "t_ofs": (1, 6),
                     "m_ofs": (1, 6),
                 })
@@ -369,6 +391,17 @@ def make_limits_figure(rows, out_path):
 
     log_m = np.log(sp_mem[valid])
     slope_m, intercept_m = np.polyfit(log_n, log_m, 1)
+
+    # Commit the fitted scaling exponents shown as the n^slope inline labels.
+    _slopes_csv = os.path.join(RESULTS_DIR, "scaling_slopes.csv")
+    with open(_slopes_csv, "w", newline="") as _f:
+        _w = csv.writer(_f)
+        _w.writerow(["source", "k_target", "slope_time", "slope_mem",
+                     "n_min", "n_max"])
+        _w.writerow(["constk_primary", CONSTK_PRIMARY_K,
+                     round(float(slope_t), 3), round(float(slope_m), 3),
+                     int(ns.min()), int(ns.max())])
+    print(f"Saved {_slopes_csv}")
 
     n_max = 7.5  # log10 upper limit for extrapolation lines
     n_extrap = np.logspace(np.log10(ns[0]), n_max, 100)
