@@ -14,8 +14,6 @@ Outputs (in paper/):
     tab_constk.tex            — Constant-k scaling
     tab_pysal.tex             — Graph-construction: GSHAC vs PySAL DistanceBand
     tab_sklearn.tex           — GSHAC vs scikit-learn connectivity HAC
-    tab_realworld.tex         — Dense vs sparse for mining dataset
-    tab_mining_components.tex — Component and cluster statistics (mining)
     tab_geonames.tex          — GSHAC on 2M-point GeoNames sample
     tab_hdbscan.tex           — HDBSCAN vs GSHAC resource comparison
 """
@@ -330,114 +328,6 @@ def make_tab_sklearn():
     write_table("sklearn", content)
 
 
-# ── Table 6: Real-world mining dataset ────────────────────────────────
-
-def make_tab_realworld():
-    rows = read_csv("benchmark_mining.csv")
-    r = rows[0]
-
-    n = int(r["n"])
-    n_edges = int(r["n_edges"])
-    n_reps = int(r["n_reps"])
-    sparse_mib = float(r["sparse_matrix_mib"])
-    dense_full_gib = float(r["dense_matrix_full_gib"])
-    dense_cond_gib = float(r["dense_matrix_condensed_gib"])
-    graph_t = float(r["graph_time_s"])
-    hac_t = float(r["hac_time_s"])
-    total_t = float(r["total_time_s"])
-    graph_mem = float(r["graph_mem_mib"])
-    hac_mem = float(r["hac_mem_mib"])
-    pipeline_mem = float(r["pipeline_mem_mib"])
-
-    dense_pairs = n * (n - 1) / 2
-    # Format as e.g. "3.4 \times 10^{10}"
-    exp = int(math.floor(math.log10(dense_pairs)))
-    coeff = dense_pairs / 10 ** exp
-
-    def _mem(mib):
-        return (f"\\({mib / 1024:.1f}\\,\\text{{GiB}}\\)" if mib >= 1024
-                else f"\\({int(round(mib))}\\,\\text{{MiB}}\\)")
-
-    content = f"""\\begin{{table}}[t]
-\\caption{{Dense vs.\\ sparse for the global mining dataset
-  (\\(n = {fmt_int(n)}\\), \\(\\hmax = 20\\)\\,km, haversine, AMD Ryzen~7 PRO
-  8840U, 30\\,GiB DDR5; sparse figures are the mean over {n_reps} repetitions).
-  Dense figures are analytical (full \\(n^2\\) matrix
-  \\(\\approx {dense_full_gib:.0f}\\,\\text{{GiB}}\\); condensed vector
-  \\(\\approx {dense_cond_gib:.0f}\\,\\text{{GiB}}\\)); sparse figures are measured.}}
-\\label{{tab:realworld}}
-\\small
-\\begin{{tabular}}{{lrr}}
-\\toprule
-& \\textbf{{Dense baseline}} & \\textbf{{GSHAC}} \\\\
-\\midrule
-Distance pairs            & \\(\\approx {coeff:.1f} \\times 10^{{{exp}}}\\) & \\({fmt_int(n_edges)}\\) \\\\
-Graph/matrix storage      & \\(\\approx {dense_full_gib:.0f}\\,\\text{{GiB}}\\) & \\({int(round(sparse_mib))}\\,\\text{{MiB}}\\) \\\\
-Graph construction        & ---                       & \\({graph_t:.1f}\\,\\text{{s}}\\) \\\\
-HAC (all components)      & \\(>\\,10\\,\\text{{h}}\\)        & \\({hac_t:.1f}\\,\\text{{s}}\\) \\\\
-Total wall time           & \\(>\\,10\\,\\text{{h}}\\)        & \\({total_t:.1f}\\,\\text{{s}}\\) \\\\
-Peak memory (graph)       & ---                       & {_mem(graph_mem)} \\\\
-Peak memory (HAC)         & ---                       & {_mem(hac_mem)} \\\\
-Peak memory (pipeline)    & \\(\\approx {dense_full_gib:.0f}\\,\\text{{GiB}}\\) & {_mem(pipeline_mem)} \\\\
-Feasible on workstation   & No                        & Yes \\\\
-\\bottomrule
-\\end{{tabular}}
-\\end{{table}}"""
-
-    write_table("realworld", content)
-
-
-# ── Table 7: Mining components and cluster statistics ─────────────────
-
-def make_tab_mining_components():
-    comp_rows = read_csv("benchmark_mining_components.csv")
-    clust_rows = read_csv("benchmark_mining_clusters.csv")
-    mining = read_csv("benchmark_mining.csv")[0]
-
-    comp = {str(r["percentile"]): r["component_size"] for r in comp_rows}
-    n_singletons = int(mining["n_singletons"])
-
-    median = comp.get("50", comp.get("50.0", 2))
-    p90 = comp.get("90", comp.get("90.0", 15))
-    p99 = comp.get("99", comp.get("99.0", 151))
-    maximum = comp.get("100", comp.get("100.0", 30179))
-
-    clust_map = {float(r["h_cut_km"]): int(r["n_clusters"]) for r in clust_rows}
-
-    def _i(v):
-        return fmt_int(int(round(float(v))))
-
-    # Cluster-count rows follow the experiment's cut heights H = {1,2,5,10,20} km.
-    h_rows = "\n".join(
-        f"$h = {h:g}\\,\\text{{km}}$   & {_i(clust_map[h])} \\\\"
-        for h in [1.0, 2.0, 5.0, 10.0, 20.0] if h in clust_map
-    )
-
-    content = f"""\\begin{{table}}[ht]
-\\caption{{Component and cluster statistics for the mining dataset
-  ($n = {fmt_int(int(mining['n']))}$, $h_{{\\max}} = 20\\,\\text{{km}}$).}}
-\\label{{tab:mining_components}}
-\\small
-\\begin{{tabular}}{{lr}}
-\\toprule
-\\multicolumn{{2}}{{l}}{{\\textit{{Connected component size}}}} \\\\
-\\midrule
-Singletons        & {_i(n_singletons)} \\\\
-Median            & {_i(median)} \\\\
-90th percentile   & {_i(p90)} \\\\
-99th percentile   & {_i(p99)} \\\\
-Maximum           & {_i(maximum)} \\\\
-\\midrule
-\\multicolumn{{2}}{{l}}{{\\textit{{Number of clusters at threshold $h$}}}} \\\\
-\\midrule
-{h_rows}
-\\bottomrule
-\\end{{tabular}}
-\\end{{table}}"""
-
-    write_table("mining_components", content)
-
-
 # ── Table 8: GeoNames 2M-point benchmark ──────────────────────────────
 
 def make_tab_geonames():
@@ -646,8 +536,6 @@ if __name__ == "__main__":
     make_tab_constk()
     make_tab_pysal()
     make_tab_sklearn()
-    # Mining demoted to cited motivation (not a benchmark); tab_realworld and
-    # tab_mining_components are no longer generated or \input by the manuscript.
     make_tab_geonames()
     make_tab_hdbscan()
 

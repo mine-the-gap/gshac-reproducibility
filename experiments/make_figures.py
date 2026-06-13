@@ -293,16 +293,12 @@ CONSTK_PRIMARY_K = 126
 
 
 def _load_rw_points():
-    """Read real-world reference points (mining + GeoNames) from benchmark CSVs.
+    """Read the GeoNames real-world reference point from benchmark_geonames.csv.
 
     Returns a list of dicts compatible with the green-star plotting loops in
-    make_limits_figure. Each dict carries label, n, time, mem (graph+HAC peak
-    sum, matching the original convention), and offset tuples for the inline
-    annotations. Sources:
-      * benchmark_mining.csv: single-row CSV at h_max=20 km
-      * benchmark_geonames.csv: row matching GEONAMES_STAR_HMAX_M
-    Missing CSVs or thresholds are silently skipped so the figure can still
-    render with whichever points are available.
+    make_limits_figure (label, n, time, mem, and offset tuples for the inline
+    annotations). The row matching GEONAMES_STAR_HMAX_M is used; a missing CSV
+    or threshold is silently skipped so the figure can still render.
     """
     points = []
 
@@ -313,8 +309,7 @@ def _load_rw_points():
             return f"$n$={n // 1000}K"
         return f"$n$={n}"
 
-    # Mining is demoted to a cited motivation only (not a reported benchmark),
-    # so no mining reference star is plotted -- GeoNames is the sole real-world star.
+    # GeoNames provides the sole real-world reference star.
     geo_path = os.path.join(RESULTS_DIR, "benchmark_geonames.csv")
     if os.path.exists(geo_path):
         for r in read_benchmark_csv(geo_path):

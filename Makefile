@@ -16,11 +16,9 @@ setup:
 	$(PIP) install -r requirements.txt
 
 ## Run all experiments (order matters for dependencies)
-## NOTE: RQ1 (§5.1) exactness + determinism is now folded INTO benchmark.py — it
-## compares the dense vs sparse labels it already computes (see the exact_agree column
-## in benchmark_python[_reps].csv); the standalone validate_correctness.py was dropped.
-## benchmark_mining.py is demoted to cited motivation (plan D6); it and its tables are
-## slated for removal in the manuscript pass — kept here until then so `make paper` builds.
+## NOTE: RQ1 (§5.1) exactness + determinism is folded INTO benchmark.py — it compares
+## the dense vs sparse labels it already computes (see the exact_agree column in
+## benchmark_python[_reps].csv); the standalone validate_correctness.py was dropped.
 experiments:
 	$(PYTHON) experiments/demo_exactness.py
 	$(PYTHON) experiments/benchmark_constk.py
@@ -29,7 +27,6 @@ experiments:
 	$(PYTHON) experiments/benchmark_geonames_geographic.py
 	$(PYTHON) experiments/benchmark_hdbscan.py
 	$(PYTHON) experiments/benchmark.py
-	$(PYTHON) experiments/benchmark_mining.py
 
 ## Generate all paper figures from results
 figures:

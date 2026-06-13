@@ -586,49 +586,6 @@ for r in rows:
 # superseded by the combined fig_scaling.pdf (make_figures.py) used in the paper.
 
 # ------------------------------------------------------------------
-# Real-world extrapolation (global mining dataset, n=261,073)
-# ------------------------------------------------------------------
-
-print("\n--- Real-world extrapolation (global mining dataset) ---")
-
-N_RW      = 261_073
-K_MEAN_RW = 57.8
-H_MAX_RW  = 20_000   # metres
-
-m_rw = int(N_RW * K_MEAN_RW / 2)
-sparse_matrix_mib   = m_rw * 2 * 8 / 1024 ** 2     # upper + lower triangle, float64
-dense_full_gib      = N_RW ** 2 * 8 / 1024 ** 3    # full n x n, float64
-dense_condensed_gib = N_RW * (N_RW - 1) / 2 * 8 / 1024 ** 3
-
-print(f"n = {N_RW:,}")
-print(f"Estimated edges m ~ {m_rw:,}  (mean k = {K_MEAN_RW})")
-print(f"Sparse matrix memory:  ~{sparse_matrix_mib:.0f} MiB")
-print(f"Dense matrix memory:   ~{dense_full_gib:.0f} GiB full / "
-      f"{dense_condensed_gib:.0f} GiB condensed  (infeasible on workstations)")
-
-ref = [r for r in rows
-       if r["scenario"] == "tight" and r["h_max_km"] == 20.0 and r["n"] == 10_000]
-if ref:
-    t_ref = ref[0]["sparse_time_mean"]
-    n_ref = 10_000
-    cost_ref = n_ref * np.log(n_ref) + n_ref * ref[0]["mean_k"]
-    cost_rw  = N_RW  * np.log(N_RW)  + N_RW  * K_MEAN_RW
-    t_index_query = t_ref * (cost_rw / cost_ref)
-    print(f"\nTime estimate (sparse, lower bound — index+query only):")
-    print(f"  ~{t_index_query/60:.1f} min  (extrapolated from n={n_ref:,} tight benchmark)")
-    print(f"  HAC on components adds to this; actual time depends on component sizes.")
-
-print(f"\nDense baseline estimate (n={N_RW:,}):")
-ref_dense = [r for r in rows
-             if r["scenario"] == "tight" and r["h_max_km"] == 20.0 and r["n"] == 10_000]
-if ref_dense:
-    t_dense_ref = ref_dense[0]["dense_time_mean"]
-    t_dense_rw  = t_dense_ref * (N_RW / 10_000) ** 2
-    print(f"  ~{t_dense_rw/3600:.1f} hours  (O(n^2) extrapolation from n=10k)")
-    print(f"  Memory: ~{dense_full_gib:.0f} GiB full / {dense_condensed_gib:.0f} GiB condensed"
-          f"  -> not feasible on any workstation")
-
-# ------------------------------------------------------------------
 # PySAL DistanceBand graph construction comparison
 # ------------------------------------------------------------------
 

@@ -68,8 +68,6 @@ they measure:
 | `benchmark_geonames_geographic.py` | **Headline scaling:** grow the geographic *window* at constant density (widening longitude strip) → near-linear (k̄ stays bounded). | `benchmark_geonames_geographic.csv` (+ `_slopes`) |
 | `benchmark_geonames_scaling.py` | **Limitations:** fixed-extent subsampling → density (and k̄) grow ∝ n → memory ~quadratic. The adversarial regime; GSHAC still *runs* where dense cannot. | `benchmark_geonames_scaling.csv` (+ `_slopes`) |
 | `benchmark_hdbscan.py` | Resource comparison vs scikit-learn HDBSCAN on a 100k GeoNames subset (5 reps each), plus a scaling probe extrapolating HDBSCAN to 2 M. Non-equivalent outputs — resource profiles only. | `benchmark_hdbscan.csv` (+ `_scaling`), `tab_hdbscan.tex` |
-| **Motivating application (mining — not redistributable)** | | |
-| `benchmark_mining.py` | Feasibility on a 261k-point mining inventory at scales where dense HAC is analytically impossible. Demoted to a cited motivating application (the data is **not public**); all reproducible results use GeoNames + synthetic. | `benchmark_mining*.csv` |
 | **Build** | | |
 | `make_figures.py` | Regenerate every `paper/fig_*.pdf` from `results/*.csv`. | `fig_*.pdf`, `scenario_illustration.csv`, `scaling_slopes.csv` |
 | `make_tables.py` | Regenerate every `paper/tab_*.tex` from `results/*.csv`. | `tab_*.tex` |
@@ -79,10 +77,6 @@ they measure:
 - **GeoNames** (CC BY 4.0): downloaded automatically on first run
   (`allCountries.zip` → `allCountries.txt`, ~1.7 GB extracted) and cached in `data/`.
   No manual step needed.
-- **Mining** (`data/cluster_data.gpkg`): a proprietary inventory that is **not
-  redistributable**. `benchmark_mining.py` requires this file and will error without
-  it; it is a motivating application only, so its absence does not affect any of the
-  open, reproducible results.
 
 ## Reproducibility notes
 
@@ -100,6 +94,5 @@ they measure:
 
 ## License
 
-The GSHAC library is licensed separately at
-[vwmaus/gshac](https://github.com/vwmaus/gshac). License terms for this
-benchmark/paper repository are to be finalized.
+GPL-3.0. See [LICENSE](LICENSE). The GSHAC python library is licensed separately at
+[vwmaus/gshac](https://github.com/vwmaus/gshac).
