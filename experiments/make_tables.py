@@ -646,8 +646,8 @@ if __name__ == "__main__":
     make_tab_constk()
     make_tab_pysal()
     make_tab_sklearn()
-    make_tab_realworld()
-    make_tab_mining_components()
+    # Mining demoted to cited motivation (not a benchmark); tab_realworld and
+    # tab_mining_components are no longer generated or \input by the manuscript.
     make_tab_geonames()
     make_tab_hdbscan()
 

@@ -313,20 +313,8 @@ def _load_rw_points():
             return f"$n$={n // 1000}K"
         return f"$n$={n}"
 
-    mining_path = os.path.join(RESULTS_DIR, "benchmark_mining.csv")
-    if os.path.exists(mining_path):
-        m = read_benchmark_csv(mining_path)[0]
-        n = int(m["n"])
-        points.append({
-            "label": _label(n),
-            "n": n,
-            "time": float(m["total_time_s"]),
-            "mem": (float(m["pipeline_mem_mib"]) if "pipeline_mem_mib" in m
-                    else max(float(m["graph_mem_mib"]), float(m["hac_mem_mib"]))),
-            "t_ofs": (1, 6),
-            "m_ofs": (1, 6),
-        })
-
+    # Mining is demoted to a cited motivation only (not a reported benchmark),
+    # so no mining reference star is plotted -- GeoNames is the sole real-world star.
     geo_path = os.path.join(RESULTS_DIR, "benchmark_geonames.csv")
     if os.path.exists(geo_path):
         for r in read_benchmark_csv(geo_path):
@@ -544,6 +532,54 @@ def make_limits_figure(rows, out_path):
     print(f"Saved {out_path}")
 
 
+def make_geoscaling_figure(out_path):
+    """Two GeoNames scaling regimes on the same 2M sample at h_max = 10 km:
+    geographic windows at constant density (near-linear, the realistic regime)
+    vs fixed-extent subsampling at growing density (~quadratic memory). The two
+    curves converge at n = 2M, where both equal the full sample."""
+    import csv as _csv
+
+    def _read(name):
+        p = os.path.join(RESULTS_DIR, name)
+        if not os.path.exists(p):
+            return None
+        with open(p) as f:
+            return list(_csv.DictReader(f))
+
+    geo = _read("benchmark_geonames_geographic.csv")
+    fix = _read("benchmark_geonames_scaling.csv")
+    if not geo or not fix:
+        print("WARNING: geoscaling CSVs missing -- skipping fig_geoscaling")
+        return
+
+    def col(rows, k, scale=1.0):
+        return np.array([float(r[k]) for r in rows]) * scale
+
+    gn, gt, gm = col(geo, "n"), col(geo, "total_time_s"), col(geo, "pipeline_mem_mib", 1 / 1024)
+    fn, ft, fm = col(fix, "n"), col(fix, "total_time_s"), col(fix, "pipeline_mem_mib", 1 / 1024)
+
+    def slope(x, y):
+        return float(np.polyfit(np.log(x), np.log(y), 1)[0])
+
+    fig, (ax_t, ax_m) = plt.subplots(1, 2, figsize=(7.16, 3.2))
+    GEO_C, FIX_C = "#1f77b4", "#d62728"
+    for ax, gy, fy, ylab in ((ax_t, gt, ft, "Wall time (s)"),
+                             (ax_m, gm, fm, "Peak memory (GiB)")):
+        ax.plot(gn, gy, "-o", color=GEO_C, lw=2.2, ms=5, zorder=3,
+                label=f"Constant density ($n^{{{slope(gn, gy):.2f}}}$)")
+        ax.plot(fn, fy, "--s", color=FIX_C, lw=1.3, ms=4, alpha=0.85, zorder=2,
+                label=f"Growing density ($n^{{{slope(fn, fy):.2f}}}$)")
+        ax.set_xscale("log"); ax.set_yscale("log")
+        ax.set_xlabel("$n$ (points)", fontsize=9)
+        ax.set_ylabel(ylab, fontsize=9)
+        ax.grid(True, which="both", ls=":", lw=0.5, alpha=0.6)
+        ax.legend(fontsize=7.5, loc="upper left")
+    fig.tight_layout()
+    fig.savefig(out_path, bbox_inches="tight")
+    plt.close(fig)
+    print(f"Saved {out_path}")
+
+
 # =====================================================================
 # Main
 # =====================================================================
@@ -566,3 +602,6 @@ if __name__ == "__main__":
 
     # Limits figure
     make_limits_figure(rows, f"{FIGURES_DIR}/fig_limits.pdf")
+
+    # GeoNames scaling regimes (constant vs growing density)
+    make_geoscaling_figure(f"{FIGURES_DIR}/fig_geoscaling.pdf")
