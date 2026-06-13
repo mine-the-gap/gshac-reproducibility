@@ -9,6 +9,7 @@ CONTEXT.md
 plan_* 
 session-state.md
 tty*
+run.log 
 
 # LaTeX build artifacts
 paper/*.aux
