@@ -1,5 +1,5 @@
-# Generated outputs — reproduce via make benchmark / make data
-figures/
+# Generated outputs — reproduce via make experiments / make figures
+# (paper figures live tracked under paper/fig_*.pdf)
 results/
 data/
 

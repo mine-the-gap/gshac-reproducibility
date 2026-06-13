@@ -1,20 +1,24 @@
 \begin{table}[!h]
-\caption{Resource comparison: \texttt{sklearn} HDBSCAN vs.\ GSHAC
-  on the mining dataset (\(n = 261{,}073\), haversine).
-  Non-equivalent outputs; illustrates resource profiles only.}
+\caption{Resource comparison: \texttt{sklearn} HDBSCAN vs.\ GSHAC on a 100k
+  subset of the GeoNames sample (\(n = 100{,}000\), haversine), both measured
+  in this run with the same whole-pipeline peak-memory definition.
+  Non-equivalent outputs; illustrates resource profiles only. The gap widens with
+  \(n\): HDBSCAN scales super-linearly (extrapolated to hours at 2M), GSHAC
+  near-linearly (Table~\ref{tab:geonames}).}
 \label{tab:hdbscan}
 \small
 \begin{tabular}{lrrrr}
 \toprule
-\textbf{Method} & \textbf{Time} & \textbf{Mem} & \textbf{Clusters} & \textbf{Noise} \\
+\textbf{Method} & \textbf{Time} & \textbf{Peak mem} & \textbf{Clusters} & \textbf{Noise} \\
 \midrule
-HDBSCAN (mcs\,=\,2) & 1{,}624\,s & 111\,MiB & 76{,}021 & 11.9\% \\
-HDBSCAN (mcs\,=\,5) & 1{,}577\,s & 88\,MiB & 17{,}014 & 24.4\% \\
+HDBSCAN (mcs\,=\,2) & 234\,s & 43\,MiB & 29{,}398 & 12.7\% \\
+HDBSCAN (mcs\,=\,5) & 225\,s & 33\,MiB & 4{,}667 & 35.2\% \\
 \addlinespace
-GSHAC (\(\hmax\!=\!20\)\,km)\(^{*}\) & 12\,s & 109\,MiB & --- & 0\% \\
-\quad\(\to h\!=\!5\)\,km  & & & 80{,}185 & \\
-\quad\(\to h\!=\!20\)\,km & & & 17{,}883 & \\
+GSHAC (\(\hmax\!=\!10\)\,km)\(^{*}\) & 6\,s & 35\,MiB & --- & 0\% \\
+\quad\(\to h\!=\!5\)\,km  & & & 80{,}571 & \\
+\quad\(\to h\!=\!10\)\,km & & & 56{,}141 & \\
 \bottomrule
-\multicolumn{5}{l}{\footnotesize \(^{*}\)Single run; dendrogram cut at any \(h \leq \hmax\).}
+\multicolumn{5}{l}{\footnotesize \(^{*}\)GSHAC: mean over 5 reps; HDBSCAN: mean over 5 reps. One dendrogram cut at any \(h \leq \hmax\).} \\
+\multicolumn{5}{l}{\footnotesize GSHAC peak is whole-pipeline: graph phase 35\,MiB, MST-path HAC phase 24\,MiB.}
 \end{tabular}
 \end{table}

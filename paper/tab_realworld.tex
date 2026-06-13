@@ -1,21 +1,25 @@
 \begin{table}[t]
 \caption{Dense vs.\ sparse for the global mining dataset
   (\(n = 261{,}073\), \(\hmax = 20\)\,km, haversine, AMD Ryzen~7 PRO
-  8840U, 30\,GB DDR5).
-  Dense figures are analytical; sparse figures are measured.}
+  8840U, 30\,GiB DDR5; sparse figures are the mean over 5 repetitions).
+  Dense figures are analytical (full \(n^2\) matrix
+  \(\approx 508\,\text{GiB}\); condensed vector
+  \(\approx 254\,\text{GiB}\)); sparse figures are measured.}
 \label{tab:realworld}
 \small
 \begin{tabular}{lrr}
 \toprule
 & \textbf{Dense baseline} & \textbf{GSHAC} \\
 \midrule
-Distance pairs          & \(\approx 3.4 \times 10^{10}\) & \(7{,}542{,}730\) \\
-Graph/matrix storage    & \(\approx 545\,\text{GiB}\)      & \(121\,\text{MiB}\)   \\
-Graph construction      & ---                             & \(5.8\,\text{s}\) \\
-HAC (all components)    & \(>\,10\,\text{h}\)             & \(6.0\,\text{s}\) \\
-Total wall time         & \(>\,10\,\text{h}\)             & \(11.8\,\text{s}\) \\
-Peak memory (HAC)       & \(\approx 545\,\text{GiB}\)      & \(109\,\text{MiB}\) \\
-Feasible on workstation & No                              & Yes \\
+Distance pairs            & \(\approx 3.4 \times 10^{10}\) & \(7{,}542{,}730\) \\
+Graph/matrix storage      & \(\approx 508\,\text{GiB}\) & \(115\,\text{MiB}\) \\
+Graph construction        & ---                       & \(6.5\,\text{s}\) \\
+HAC (all components)      & \(>\,10\,\text{h}\)        & \(6.5\,\text{s}\) \\
+Total wall time           & \(>\,10\,\text{h}\)        & \(13.1\,\text{s}\) \\
+Peak memory (graph)       & ---                       & \(1.4\,\text{GiB}\) \\
+Peak memory (HAC)         & ---                       & \(109\,\text{MiB}\) \\
+Peak memory (pipeline)    & \(\approx 508\,\text{GiB}\) & \(1.4\,\text{GiB}\) \\
+Feasible on workstation   & No                        & Yes \\
 \bottomrule
 \end{tabular}
 \end{table}

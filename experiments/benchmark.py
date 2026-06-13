@@ -24,9 +24,6 @@ Outputs (relative to repo root, i.e. one level up from this script):
   results/benchmark_sklearn_comparison.csv
   results/benchmark_sklearn_timing.csv
   results/benchmark_pysal.csv
-  figures/fig_time_python.pdf
-  figures/fig_memory_python.pdf
-  figures/fig_speedup_python.pdf
 """
 
 from __future__ import annotations
@@ -39,9 +36,6 @@ import csv
 import gc
 import math
 import numpy as np
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 from pathlib import Path
 
 from gshac.spatial_dist_graph import spatial_dist_graph
@@ -50,9 +44,7 @@ from gshac.sparse_hclust import sparse_hclust, dense_hclust
 # Paths relative to repo root (one level up from experiments/)
 _ROOT = os.path.join(os.path.dirname(__file__), "..")
 RESULTS_DIR = os.path.join(_ROOT, "results")
-FIGURES_DIR = os.path.join(_ROOT, "figures")
 os.makedirs(RESULTS_DIR, exist_ok=True)
-os.makedirs(FIGURES_DIR, exist_ok=True)
 
 # ------------------------------------------------------------------
 # Density scenarios
@@ -138,7 +130,10 @@ def measure_pipeline(build_fn, run_fn):
 # Benchmark parameters
 # ------------------------------------------------------------------
 
-N_SIZES    = [1_000, 5_000, 10_000, 25_000, 50_000, 100_000]
+# Capped at 50k: n=100k needs ~27-40 GiB (loose/50km) and OOMs a 30 GiB box;
+# scaling-to-millions is now carried by the real-data GeoNames ladder
+# (benchmark_geonames_scaling.py). 50k still shows the crossover + quadratic trend.
+N_SIZES    = [1_000, 5_000, 10_000, 25_000, 50_000]
 H_MAX_VALS = [10_000, 20_000, 50_000]   # metres
 N_REP      = 5
 METHOD     = "single"
@@ -161,6 +156,14 @@ _reps_file    = open(_reps_path, "w", newline="")
 _summary_writer = None
 _reps_writer    = None
 _reps_written   = 0
+
+# --- Correctness consolidation (folds in the former validate_correctness.py) ---
+# The dense + sparse clusterings computed below ARE the exactness check: we compare
+# their cluster labels (cheap, AFTER the measured region) instead of discarding them.
+# Exactness (sparse == dense) for dense-feasible n; reproducibility (identical counts
+# across the 5 reps) for sparse-only n. Recorded per rep in benchmark_python_reps.csv.
+correctness_all_pass = True
+correctness_fails    = []
 
 for scenario_name, scenario_cfg in SCENARIOS.items():
     n_centres    = scenario_cfg["n_centres"]
@@ -190,18 +193,25 @@ for scenario_name, scenario_cfg in SCENARIOS.items():
             n_edges_val = density_val = None
             dt = dm = None
 
+            valid_cuts = [h for h in H_CUTS if h <= h_max]
+            sparse_counts_rep0 = None
+            config_all_agree = True
+            exact_mode = "vs_dense" if run_dense else "reproducibility"
+
             for rep in range(N_REP):
                 # Dense baseline (skip if infeasible)
+                dn_res = None
                 if run_dense:
-                    _, dt, dm = measure(lambda: dense_hclust(pts, H_CUTS, METHOD))
+                    dn_res, dt, dm = measure(lambda: dense_hclust(pts, H_CUTS, METHOD))
                     dense_times.append(dt)
                     dense_mems.append(dm)
-                    gc.collect()
+                    gc.collect()   # free dense's internal matrices before measuring
+                                   # sparse; dn_res keeps only the (~MB) labels
 
                 # Sparse — graph + HAC in ONE tracemalloc scope (single build):
                 # phase times AND whole-pipeline peak from one pass, halving the
                 # work vs. building the graph twice (timing + memory) per rep.
-                graph, _res, gt, ht, sm = measure_pipeline(
+                graph, sp_res, gt, ht, sm = measure_pipeline(
                     lambda: spatial_dist_graph(pts, h_max),
                     lambda g: sparse_hclust(g, H_CUTS, METHOD))
                 graph_times.append(gt)
@@ -213,7 +223,26 @@ for scenario_name, scenario_cfg in SCENARIOS.items():
                     n_edges_val = graph["n_edges"]
                     density_val = graph["density"]
 
-                del graph, _res
+                # --- Correctness check (consolidates validate_correctness.py) ---
+                # AFTER measure*(): the peaks are already captured, so comparing the
+                # ~KB label arrays cannot perturb the timing/memory measurements.
+                sparse_counts = {h: int(np.unique(sp_res["labels"][h]).size)
+                                 for h in valid_cuts}
+                if run_dense:
+                    rep_agree = all(                       # exactness: sparse == dense
+                        int(np.unique(dn_res["labels"][h]).size) == sparse_counts[h]
+                        for h in valid_cuts)
+                else:
+                    rep_agree = (sparse_counts_rep0 is None      # reproducibility
+                                 or sparse_counts == sparse_counts_rep0)
+                if rep == 0:
+                    sparse_counts_rep0 = sparse_counts
+                if not rep_agree:
+                    config_all_agree = False
+                    correctness_all_pass = False
+                    correctness_fails.append((scenario_name, n, h_max_km, rep))
+
+                del graph, sp_res, dn_res
                 gc.collect()
 
                 # Save per-rep data
@@ -228,6 +257,8 @@ for scenario_name, scenario_cfg in SCENARIOS.items():
                     "sparse_mem_mib": round(sm, 2),
                     "graph_time_s":   round(gt, 4),
                     "hac_time_s":     round(ht, 4),
+                    "exact_mode":     exact_mode,
+                    "exact_agree":    rep_agree,
                 })
 
             mean_k = round(2 * n_edges_val / n, 1) if n_edges_val else None
@@ -251,6 +282,9 @@ for scenario_name, scenario_cfg in SCENARIOS.items():
                 "n_edges":         n_edges_val,
                 "mean_k":          mean_k,
                 "graph_density":   round(density_val, 6) if density_val else None,
+                # Correctness (consolidated from validate_correctness.py)
+                "exact_mode":      exact_mode,
+                "exact_agree":     config_all_agree,
                 # Dense — mean ± sd
                 "dense_time_mean": round(np.mean(dense_times), 4) if run_dense else "",
                 "dense_time_sd":   round(np.std(dense_times, ddof=1), 4) if run_dense else "",
@@ -312,6 +346,81 @@ _reps_file.close()
 
 print(f"\nSummary results written to {_summary_path}")
 print(f"Per-rep results written to {_reps_path}")
+
+# Correctness summary (consolidates the former standalone validate_correctness.py)
+print(f"\nCorrectness check (folded in): "
+      f"{'ALL PASS' if correctness_all_pass else str(len(correctness_fails)) + ' FAILURES'} "
+      f"over {len(rep_rows)} per-rep checks "
+      f"(sparse==dense for n<=25k; reproducible across reps for n>=50k).")
+for s, nn, hk, rp in correctness_fails[:10]:
+    print(f"  MISMATCH: {s} n={nn:,} h={hk:.0f}km rep={rp}")
+
+# ------------------------------------------------------------------
+# Multi-linkage exactness (RQ1 — ALL linkage methods, not just single)
+# ------------------------------------------------------------------
+# The main loop validates single linkage at scale. This section verifies
+# GSHAC == dense fastcluster for single / complete / average / Ward at small
+# dense-feasible sizes. The exactness guarantee is linkage-agnostic: connected
+# components are separated by gaps > h_max, so no cross-component merge occurs at
+# any cut h <= h_max, and each component's dense sub-matrix is exact — hence the
+# per-component HAC (any linkage) matches the dense baseline below the threshold.
+
+print("\n--- multi-linkage exactness (GSHAC vs dense fastcluster) ---")
+
+LX_LINKAGES = ["single", "complete", "average", "ward"]
+LX_N_SIZES  = [1_000, 5_000]
+LX_H_MAX    = [10_000, 20_000]
+
+linkage_rows = []
+lx_all_pass  = True
+for scenario_name, scenario_cfg in SCENARIOS.items():
+    for h_max in LX_H_MAX:
+        spread_m   = scenario_cfg["spread_factor"] * h_max
+        valid_cuts = [h for h in H_CUTS if h <= h_max]
+        for n in LX_N_SIZES:
+            pts = generate_clustered_points(n, scenario_cfg["n_centres"], spread_m)
+            g = spatial_dist_graph(pts, h_max)
+            for lnk in LX_LINKAGES:
+                try:
+                    sp = sparse_hclust(g, H_CUTS, lnk, coords=pts)
+                    dn = dense_hclust(pts, H_CUTS, lnk)
+                    mism = [(h // 1000,
+                             int(np.unique(sp["labels"][h]).size),
+                             int(np.unique(dn["labels"][h]).size))
+                            for h in valid_cuts
+                            if int(np.unique(sp["labels"][h]).size)
+                               != int(np.unique(dn["labels"][h]).size)]
+                    agree = not mism
+                    note  = "" if agree else f"sparse!=dense at {mism[:3]}"
+                    del sp, dn
+                except Exception as exc:
+                    agree, mism = None, []
+                    note = f"ERROR {type(exc).__name__}: {str(exc)[:60]}"
+                if agree is not True:
+                    lx_all_pass = False
+                linkage_rows.append({
+                    "scenario":     scenario_name,
+                    "n":            n,
+                    "h_max_km":     h_max / 1000,
+                    "linkage":      lnk,
+                    "n_cuts":       len(valid_cuts),
+                    "all_agree":    agree,
+                    "n_mismatches": len(mism),
+                    "note":         note,
+                })
+                print(f"  {scenario_name:<8} n={n:>5,} h={h_max//1000:>2}km "
+                      f"{lnk:<8}: {'PASS' if agree else 'FAIL/ERR ' + note}")
+            del pts, g
+            gc.collect()
+
+lx_out = f"{RESULTS_DIR}/benchmark_linkage_exactness.csv"
+with open(lx_out, "w", newline="") as f:
+    w = csv.DictWriter(f, fieldnames=linkage_rows[0].keys())
+    w.writeheader()
+    w.writerows(linkage_rows)
+n_ok = sum(1 for r in linkage_rows if r["all_agree"] is True)
+print(f"\nMulti-linkage exactness: {'ALL PASS' if lx_all_pass else 'SOME FAILURES'} "
+      f"({n_ok}/{len(linkage_rows)} configs across {len(LX_LINKAGES)} linkages) -> {lx_out}")
 
 # ------------------------------------------------------------------
 # scikit-learn connectivity comparison
@@ -472,101 +581,9 @@ for r in rows:
           f"{mem:>12} "
           f"{r['graph_time_frac']*100:>6.0f}%")
 
-# ------------------------------------------------------------------
-# Figures
-# ------------------------------------------------------------------
-
-SCENARIO_STYLES = {
-    "tight":    dict(color="#2CA02C", linestyle="-",  marker="^"),
-    "moderate": dict(color="#FF7F0E", linestyle="--", marker="s"),
-    "loose":    dict(color="#1F77B4", linestyle=":",  marker="o"),
-}
-
-h_maxes_km = sorted(set(r["h_max_km"] for r in rows))
-
-
-def make_time_memory_figure(metric_dense, metric_sparse, ylabel, title, out_path):
-    """One row of subplots (one per h_max), each showing all scenarios."""
-    fig, axes = plt.subplots(1, len(h_maxes_km), figsize=(10, 3.5), sharey=True)
-    for ax, h in zip(axes, h_maxes_km):
-        for scen, sty in SCENARIO_STYLES.items():
-            sub = [r for r in rows if r["h_max_km"] == h and r["scenario"] == scen]
-            sub.sort(key=lambda r: r["n"])
-            xs = [r["n"] for r in sub]
-            # Sparse: always available
-            ys = [r[metric_sparse] for r in sub]
-            ax.plot(xs, ys, color=sty["color"], linestyle="--",
-                    marker=sty["marker"], linewidth=1.2, alpha=0.6,
-                    label=f"Sparse ({scen})")
-            # Dense: only where available
-            xs_d = [r["n"] for r in sub if r[metric_dense] != ""]
-            yd   = [r[metric_dense] for r in sub if r[metric_dense] != ""]
-            if xs_d:
-                ax.plot(xs_d, yd, color=sty["color"], linestyle="-",
-                        marker=sty["marker"], linewidth=1.2,
-                        label=f"Dense ({scen})")
-        ax.set_xscale("log"); ax.set_yscale("log")
-        ax.set_xlabel("n", fontsize=9)
-        ax.set_title(f"h_max = {h:.0f} km", fontsize=9)
-        ax.grid(True, which="both", linestyle=":", linewidth=0.5)
-    axes[0].set_ylabel(ylabel, fontsize=9)
-    handles, labs = axes[0].get_legend_handles_labels()
-    seen = {}
-    for h_, l_ in zip(handles, labs):
-        if l_ not in seen:
-            seen[l_] = h_
-    fig.legend(seen.values(), seen.keys(), loc="lower center",
-               ncol=6, fontsize=7, bbox_to_anchor=(0.5, -0.08))
-    fig.suptitle(title, fontsize=10)
-    fig.tight_layout()
-    fig.savefig(out_path, bbox_inches="tight")
-    plt.close(fig)
-    print(f"Saved {out_path}")
-
-
-def make_speedup_figure(out_path):
-    fig, axes = plt.subplots(1, len(h_maxes_km), figsize=(10, 3.5), sharey=True)
-    for ax, h in zip(axes, h_maxes_km):
-        for scen, sty in SCENARIO_STYLES.items():
-            sub = [r for r in rows
-                   if r["h_max_km"] == h and r["scenario"] == scen
-                   and r["speedup_time"] != ""]
-            sub.sort(key=lambda r: r["n"])
-            if not sub:
-                continue
-            xs = [r["n"] for r in sub]
-            ys = [r["speedup_time"] for r in sub]
-            ax.plot(xs, ys, label=scen, **{k: v for k, v in sty.items()},
-                    linewidth=1.2)
-        ax.axhline(1, linestyle="--", color="grey", linewidth=0.8)
-        ax.set_xscale("log")
-        ax.set_xlabel("n", fontsize=9)
-        ax.set_title(f"h_max = {h:.0f} km", fontsize=9)
-        ax.grid(True, which="both", linestyle=":", linewidth=0.5)
-    axes[0].set_ylabel("Speedup (dense / sparse)", fontsize=9)
-    handles, labs = axes[0].get_legend_handles_labels()
-    fig.legend(handles, labs, loc="lower center", ncol=3, fontsize=8,
-               bbox_to_anchor=(0.5, -0.05))
-    fig.suptitle("Time speedup of sparse graph approach — Python", fontsize=10)
-    fig.tight_layout()
-    fig.savefig(out_path, bbox_inches="tight")
-    plt.close(fig)
-    print(f"Saved {out_path}")
-
-
-make_time_memory_figure(
-    "dense_time_mean", "sparse_time_mean",
-    "Wall time (s)",
-    "Wall time: dense vs. sparse geographic graph (Python)",
-    f"{FIGURES_DIR}/fig_time_python.pdf",
-)
-make_time_memory_figure(
-    "dense_mem_mean", "sparse_mem_mean",
-    "Peak memory (MiB)",
-    "Peak memory: dense vs. sparse geographic graph (Python)",
-    f"{FIGURES_DIR}/fig_memory_python.pdf",
-)
-make_speedup_figure(f"{FIGURES_DIR}/fig_speedup_python.pdf")
+# Note: the per-scenario time/memory/speedup plots that benchmark.py used to emit
+# (fig_time_python / fig_memory_python / fig_speedup_python) were removed — they are
+# superseded by the combined fig_scaling.pdf (make_figures.py) used in the paper.
 
 # ------------------------------------------------------------------
 # Real-world extrapolation (global mining dataset, n=261,073)

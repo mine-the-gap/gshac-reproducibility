@@ -445,7 +445,7 @@ def make_tab_geonames():
     rows.sort(key=lambda r: r["h_max_m"])
 
     data = {int(r["h_max_m"]): r for r in rows}
-    h_vals = [1000, 5000, 10000, 20000]
+    h_vals = sorted(data.keys())   # adapt to whatever thresholds are present
 
     def _mem(mib):
         mib = float(mib)
@@ -560,21 +560,21 @@ def make_tab_geonames():
 
 def make_tab_hdbscan():
     rows = read_csv("benchmark_hdbscan.csv")
-    clust_rows = read_csv("benchmark_mining_clusters.csv")
 
     hdb = [r for r in rows
-           if r["dataset"] == "mining" and r["method"] == "HDBSCAN"]
+           if r["dataset"] == "geonames" and r["method"] == "HDBSCAN"]
     hdb.sort(key=lambda r: float(r["min_cluster_size"]))
     # GSHAC measured in the SAME run, same whole-pipeline peak definition.
     gshac = next(r for r in rows
-                 if r["dataset"] == "mining"
+                 if r["dataset"] == "geonames"
                  and r["method"] == "GSHAC_sparse_single")
 
     n = int(gshac["n"])
     n_reps = int(gshac["n_reps"])
     hdb_reps = int(hdb[0]["n_reps"]) if hdb else 1
     hdb_reps_desc = "single run" if hdb_reps == 1 else f"mean over {hdb_reps} reps"
-    clust_map = {float(r["h_cut_km"]): int(r["n_clusters"]) for r in clust_rows}
+    c5 = int(float(gshac["n_clusters_h5km"]))
+    c10 = int(float(gshac["n_clusters_h10km"]))
 
     def _mem(mib):
         mib = float(mib)
@@ -600,23 +600,25 @@ def make_tab_hdbscan():
 
     tex_lines.append("\\addlinespace")
     tex_lines.append(
-        f"GSHAC (\\(\\hmax\\!=\\!20\\)\\,km)\\(^{{*}}\\) "
+        f"GSHAC (\\(\\hmax\\!=\\!10\\)\\,km)\\(^{{*}}\\) "
         f"& {_time(gshac['time_s'])} & {_mem(g_pipeline)} & --- & 0\\% \\\\"
     )
     tex_lines.append(
-        f"\\quad\\(\\to h\\!=\\!5\\)\\,km  & & & {fmt_int(clust_map[5.0])} & \\\\"
+        f"\\quad\\(\\to h\\!=\\!5\\)\\,km  & & & {fmt_int(c5)} & \\\\"
     )
     tex_lines.append(
-        f"\\quad\\(\\to h\\!=\\!20\\)\\,km & & & {fmt_int(clust_map[20.0])} & \\\\"
+        f"\\quad\\(\\to h\\!=\\!10\\)\\,km & & & {fmt_int(c10)} & \\\\"
     )
 
     body = "\n".join(tex_lines)
 
     content = f"""\\begin{{table}}[!h]
-\\caption{{Resource comparison: \\texttt{{sklearn}} HDBSCAN vs.\\ GSHAC on the
-  mining dataset (\\(n = {fmt_int(n)}\\), haversine), both measured in this run
-  with the same whole-pipeline peak-memory definition.
-  Non-equivalent outputs; illustrates resource profiles only.}}
+\\caption{{Resource comparison: \\texttt{{sklearn}} HDBSCAN vs.\\ GSHAC on a 100k
+  subset of the GeoNames sample (\\(n = {fmt_int(n)}\\), haversine), both measured
+  in this run with the same whole-pipeline peak-memory definition.
+  Non-equivalent outputs; illustrates resource profiles only. The gap widens with
+  \\(n\\): HDBSCAN scales super-linearly (extrapolated to hours at 2M), GSHAC
+  near-linearly (Table~\\ref{{tab:geonames}}).}}
 \\label{{tab:hdbscan}}
 \\small
 \\begin{{tabular}}{{lrrrr}}
@@ -625,8 +627,8 @@ def make_tab_hdbscan():
 \\midrule
 {body}
 \\bottomrule
-\\multicolumn{{5}}{{l}}{{\\footnotesize \\(^{{*}}\\)GSHAC: mean over {n_reps} reps; HDBSCAN: {hdb_reps_desc} (\\(\\sim\\)25\\,min/fit; low variance vs.\\ the \\(>\\)100\\(\\times\\) margin).}} \\\\
-\\multicolumn{{5}}{{l}}{{\\footnotesize One dendrogram cut at any \\(h \\leq \\hmax\\). GSHAC peak is whole-pipeline: graph phase {_mem(g_graph)}, MST-path HAC phase {_mem(g_hac)}.}}
+\\multicolumn{{5}}{{l}}{{\\footnotesize \\(^{{*}}\\)GSHAC: mean over {n_reps} reps; HDBSCAN: {hdb_reps_desc}. One dendrogram cut at any \\(h \\leq \\hmax\\).}} \\\\
+\\multicolumn{{5}}{{l}}{{\\footnotesize GSHAC peak is whole-pipeline: graph phase {_mem(g_graph)}, MST-path HAC phase {_mem(g_hac)}.}}
 \\end{{tabular}}
 \\end{{table}}"""
 

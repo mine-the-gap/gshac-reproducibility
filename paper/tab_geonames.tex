@@ -1,30 +1,35 @@
 \begin{table}[t]
 \caption{GSHAC results on a 2M-point GeoNames sample
-  (\(n_{\text{full}} = 13{,}412{,}837\)), single linkage, haversine.
-  All rows are measured runs except `Max sub-matrix', which is the
-  analytical dense size the MST path avoids materialising; the dense
-  \(n^2\) baseline (32\,TiB at 2M, 1.4\,PiB at \(n_{\text{full}}\))
-  is also analytical and not run.}
+  (\(n_{\text{full}} = 13{,}412{,}837\)), single linkage, haversine,
+  mean over 5 repetitions.
+  All rows are measured runs except `Max sub-matrix', the analytical dense size
+  the MST path avoids materialising; the dense \(n^2\) baseline
+  (\(29\,\text{TiB}\) full /
+  \(15\,\text{TiB}\) condensed at 2M) is analytical and
+  not run. \emph{Peak memory (graph)} is the binding peak; the MST path keeps
+  \emph{Peak memory (HAC)} far below it, and the 20\,km graph sits at the
+  workstation's memory limit.}
 \label{tab:geonames}
 \small
 \resizebox{\columnwidth}{!}{%
-\begin{tabular}{lrrrrr}
+\begin{tabular}{lrrrr}
 \toprule
-& \multicolumn{5}{c}{\(\hmax\)} \\
-\cmidrule(l){2-6}
-& \textbf{1\,km} & \textbf{2\,km} & \textbf{5\,km} & \textbf{10\,km} & \textbf{20\,km} \\
+& \multicolumn{4}{c}{\(\hmax\)} \\
+\cmidrule(l){2-5}
+& \textbf{1\,km} & \textbf{5\,km} & \textbf{10\,km} & \textbf{20\,km} \\
 \midrule
-Edges & 793k & 2.5M & 11.5M & 37.8M & 125.8M \\
-Sparse storage & 13\,MiB & 40\,MiB & 185\,MiB & 605\,MiB & 2013\,MiB \\
-Components & 1{,}594{,}175 & 1{,}133{,}082 & 407{,}357 & 114{,}715 & 23{,}854 \\
-Singletons & 87.4\% & 77.6\% & 63.8\% & 58.4\% & 54.4\% \\
-Largest component & 1{,}414 & 18{,}903 & 88{,}624 & 397{,}264 & 1{,}035{,}840 \\
-Max sub-matrix & 0.02\,GiB & 2.9\,GiB & 62.8\,GiB & 1.2\,TiB & 8.4\,TiB \\
+Edges & 793k & 11.5M & 37.8M & 125.8M \\
+Sparse storage & 12\,MiB & 176\,MiB & 577\,MiB & 1.9\,GiB \\
+Components & 1{,}594{,}160 & 407{,}350 & 114{,}716 & 23{,}854 \\
+Singletons & 87.4\% & 63.8\% & 58.4\% & 54.4\% \\
+Largest component & 1{,}414 & 88{,}624 & 397{,}264 & 1{,}035{,}840 \\
+Max sub-matrix & 0.01\,GiB & 58.5\,GiB & 1.1\,TiB & 7.8\,TiB \\
 \addlinespace
-Graph time & 30\,s & 32\,s & 37\,s & 44\,s & 104\,s \\
-HAC time & 98\,s & 152\,s & 115\,s & 51\,s & 60\,s \\
-Peak memory (HAC) & 362\,MiB & 441\,MiB & 438\,MiB & 1099\,MiB & 5809\,MiB \\
-\textbf{Total time} & \textbf{2.1\,min} & \textbf{3.1\,min} & \textbf{2.5\,min} & \textbf{1.6\,min} & \textbf{2.7\,min} \\
+Graph time & 29\,s & 34\,s & 44\,s & 73\,s \\
+HAC time & 92\,s & 107\,s & 47\,s & 62\,s \\
+Peak memory (graph) & 534\,MiB & 2.4\,GiB & 6.9\,GiB & 22.2\,GiB \\
+Peak memory (HAC) & 362\,MiB & 438\,MiB & 1.1\,GiB & 5.7\,GiB \\
+\textbf{Total time} & \textbf{2.0\,min} & \textbf{2.4\,min} & \textbf{1.5\,min} & \textbf{2.2\,min} \\
 \bottomrule
 \end{tabular}%
 }
