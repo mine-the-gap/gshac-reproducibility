@@ -1,6 +1,9 @@
-# Generated outputs — reproduce via make experiments / make figures
-# (paper figures live tracked under paper/fig_*.pdf)
-results/
+# Generated outputs. The full-scale results/*.csv ARE tracked — they are the baseline the
+# paper cites and `make compare`'s reference; git versions any changes. Fast-track runs and
+# budget logs stay untracked. Paper figures are tracked under paper/fig_*.pdf.
+results_fast/
+results*/run_logs/
+results/*.npy
 data/
 
 # Claude Code local settings

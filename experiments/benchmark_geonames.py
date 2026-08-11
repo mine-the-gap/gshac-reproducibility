@@ -31,18 +31,21 @@ from pathlib import Path
 
 ROOT = Path(__file__).parent.parent
 DATA_DIR = ROOT / "data"
-RESULTS_DIR = ROOT / "results"
+RESULTS_DIR = ROOT / ("results_fast" if os.environ.get("GSHAC_FAST") == "1" else "results")
 TXT_PATH = DATA_DIR / "allCountries.txt"
 ZIP_PATH = DATA_DIR / "geonames_allCountries.zip"
 ZIP_URL = "https://download.geonames.org/export/dump/allCountries.zip"
 DATA_DIR.mkdir(exist_ok=True)
 RESULTS_DIR.mkdir(exist_ok=True)
 
-N_SAMPLE    = 2_000_000
+# Set GSHAC_FAST=1 for a reduced-scale reproducibility check (see make reproduce-fast).
+# N_SAMPLE is imported by the two scaling scripts, so this fast value propagates there.
+FAST        = os.environ.get("GSHAC_FAST") == "1"
+N_SAMPLE    = 200_000 if FAST else 2_000_000
 N_FULL_REF  = 13_412_837
 RANDOM_SEED = 42
-H_MAX_VALS  = [1_000, 5_000, 10_000, 20_000]   # metres
-N_REP       = 5
+H_MAX_VALS  = [1_000, 5_000] if FAST else [1_000, 5_000, 10_000, 20_000]   # metres
+N_REP       = 1 if FAST else 5
 
 _MIB = 1024 ** 2
 _GIB = 1024 ** 3
@@ -67,8 +70,17 @@ def download_geonames():
     print(f"  Extracted to {TXT_PATH}  ({TXT_PATH.stat().st_size/_MIB:.0f} MiB)")
 
 
+COORDS_CACHE = DATA_DIR / "geonames_coords.npy"  # parsed (lat, lon); skips the ~1.7 GB re-parse
+
+
 def load_coords():
     import pandas as pd
+    # Fast path: reuse the cached parse if it is at least as new as the source dump.
+    if COORDS_CACHE.exists() and COORDS_CACHE.stat().st_mtime >= TXT_PATH.stat().st_mtime:
+        arr = np.load(COORDS_CACHE)
+        print(f"  Loaded {len(arr):,} features from cache {COORDS_CACHE.name} "
+              f"(skipped the {TXT_PATH.stat().st_size/_GIB:.1f} GiB re-parse)")
+        return pd.DataFrame({"lat": arr[:, 0], "lon": arr[:, 1]})
     print(f"Parsing {TXT_PATH} ...")
     t0 = time.perf_counter()
     df = pd.read_csv(
@@ -77,6 +89,8 @@ def load_coords():
         on_bad_lines="skip", engine="c",
     )
     print(f"  {len(df):,} features in {time.perf_counter()-t0:.1f} s")
+    np.save(COORDS_CACHE, df[["lat", "lon"]].to_numpy(dtype=np.float32))
+    print(f"  Cached parse -> {COORDS_CACHE.name} ({COORDS_CACHE.stat().st_size/_MIB:.0f} MiB)")
     return df
 
 
@@ -221,6 +235,15 @@ if __name__ == "__main__":
         d = reps[0]
         n, n_edges, max_c = d["n"], d["n_edges"], d["comp_max"]
         sparse_mib       = n_edges * 2 * 8 / _MIB
+        # Analytical dense-matrix sizes (float64 = 8 bytes/entry). The dense baseline is
+        # NEVER run at these n -- it cannot fit in RAM -- so these are the *hypothetical*
+        # requirements behind the paper's infeasibility claims, not measurements. Two forms:
+        #   full square = n^2 * 8            -- all n^2 pairwise distances ("the dense matrix")
+        #   condensed   = n*(n-1)/2 * 8      -- upper triangle: what an optimised dense HAC
+        #                                       (fastcluster/scipy) actually allocates
+        # The same two formulas applied to the largest component (max_c) give the per-component
+        # "max sub-matrix" a non-single linkage would materialise. Every TiB/GiB figure in the
+        # manuscript is reproducible from these formulas and n / max_c alone.
         dense_full_gib   = n ** 2 * 8 / _GIB
         dense_cond_gib   = n * (n - 1) / 2 * 8 / _GIB
         max_sub_full_gib = max_c ** 2 * 8 / _GIB

@@ -1,0 +1,4 @@
+dataset,method,min_cluster_size,h_max_m,n,n_reps,time_s,time_s_sd,pipeline_mem_mib,pipeline_mem_mib_sd,graph_time_s,hac_time_s,graph_mem_mib,hac_mem_mib,n_clusters,n_clusters_h5km,n_clusters_h10km,n_noise,noise_pct,note
+geonames,HDBSCAN,2,,100000,5,235.919,0.812,42.6,0.0,,,,,29398,,,12729,12.7,"sklearn HDBSCAN, haversine, ball_tree; peak = whole-fit"
+geonames,HDBSCAN,5,,100000,5,225.361,0.249,33.0,0.0,,,,,4667,,,35208,35.2,"sklearn HDBSCAN, haversine, ball_tree; peak = whole-fit"
+geonames,GSHAC_sparse_single,,10000,100000,5,5.753,0.138,34.9,0.0,1.391,4.362,34.9,23.9,56141,80571,56141,0,0.0,"GSHAC single linkage, haversine; peak = whole pipeline (incl. graph)"

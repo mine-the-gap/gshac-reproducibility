@@ -36,7 +36,7 @@ from gshac.sparse_hclust import sparse_hclust
 
 _ROOT = os.path.join(os.path.dirname(__file__), "..")
 FIGURES_DIR = os.path.join(_ROOT, "paper")   # fig_exactness.pdf is \input by main.tex
-RESULTS_DIR = os.path.join(_ROOT, "results")
+RESULTS_DIR = os.path.join(_ROOT, "results_fast" if os.environ.get("GSHAC_FAST") == "1" else "results")
 os.makedirs(FIGURES_DIR, exist_ok=True)
 os.makedirs(RESULTS_DIR, exist_ok=True)
 
@@ -145,7 +145,10 @@ for di, (dname, X) in enumerate(DATASETS):
         axes[di, c].set_yticks([])
 
 fig.tight_layout()
-fig_path = os.path.join(FIGURES_DIR, "fig_exactness.pdf")
+# FAST (reproduce-fast) mode: write under results/ so the tracked paper figure is untouched.
+fig_path = os.path.join(
+    RESULTS_DIR if os.environ.get("GSHAC_FAST") == "1" else FIGURES_DIR,
+    "fig_exactness.pdf")
 fig.savefig(fig_path, bbox_inches="tight", dpi=150)
 plt.close(fig)
 print(f"\nSaved {fig_path}")

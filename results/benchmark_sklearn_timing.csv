@@ -1,0 +1,7 @@
+scenario,n,h_max_km,h_cut_km,linkage,our_time_mean,our_time_sd,sklearn_conn_time_mean,sklearn_conn_time_sd,speedup,n_clusters_ours,n_clusters_sklearn,ari,results_agree
+moderate,500,10.0,5.0,single,0.0229,0.0001,0.2517,0.0011,10.97,49,49,1.0,True
+moderate,1000,10.0,5.0,single,0.0269,0.0002,0.2942,0.0015,10.94,49,49,1.0,True
+moderate,2500,10.0,5.0,single,0.0396,0.0003,0.4653,0.0039,11.74,48,48,1.0,True
+moderate,5000,10.0,5.0,single,0.0878,0.0003,1.0757,0.0224,12.25,49,49,1.0,True
+moderate,10000,10.0,5.0,single,0.3072,0.0092,3.4267,0.0576,11.15,48,48,1.0,True
+moderate,25000,10.0,5.0,single,2.0031,0.0457,18.9567,0.414,9.46,48,48,1.0,True

@@ -1,0 +1,59 @@
+cff-version: 1.2.0
+message: "If you use this software or its benchmarks, please cite the preprint below."
+title: "GSHAC benchmarks and reproducibility artifact"
+abstract: >-
+  Benchmarks, figure/table generators, and paper source for GSHAC
+  (Geographically Sparse Hierarchical Agglomerative Clustering). The GSHAC
+  library itself is maintained separately at https://github.com/mine-the-gap/gshac.
+type: software
+authors:
+  - family-names: Maus
+    given-names: Victor
+    orcid: "https://orcid.org/0000-0002-7385-4723"
+    affiliation: "WU Vienna University of Economics and Business"
+  - family-names: Borin
+    given-names: "Vinicius Pozzobon"
+    affiliation: "University of Oulu"
+repository-code: "https://github.com/vwmaus/gshac-sigspatial2026"
+url: "https://github.com/mine-the-gap/gshac"
+license: GPL-3.0
+keywords:
+  - hierarchical clustering
+  - spatial data
+  - geographic information systems
+  - scalable algorithms
+  - reproducibility
+identifiers:
+  - type: doi
+    value: 10.48550/arXiv.2604.11656
+    description: "arXiv preprint of the associated paper"
+preferred-citation:
+  type: article
+  title: "Scalable Exact Hierarchical Agglomerative Clustering via Sparse Geographic Distance Graphs"
+  authors:
+    - family-names: Maus
+      given-names: Victor
+      orcid: "https://orcid.org/0000-0002-7385-4723"
+      affiliation: "WU Vienna University of Economics and Business"
+    - family-names: Borin
+      given-names: "Vinicius Pozzobon"
+      affiliation: "University of Oulu"
+  year: 2026
+  month: 4
+  doi: 10.48550/arXiv.2604.11656
+  url: "https://arxiv.org/abs/2604.11656"
+  notes: "Preprint on arXiv (2604.11656); submitted to ACM Transactions on Spatial Algorithms and Systems."
+references:
+  - type: article
+    title: "A data-driven approach to mapping global commodity-specific mining land-use"
+    authors:
+      - family-names: Maus
+        given-names: Victor
+        orcid: "https://orcid.org/0000-0002-7385-4723"
+    journal: "Journal of Cleaner Production"
+    volume: 540
+    year: 2026
+    doi: 10.1016/j.jclepro.2025.147437
+    publisher:
+      name: Elsevier
+    notes: "Article no. 147437. First application of the sparse geographic distance graph method (261k global mining features)."

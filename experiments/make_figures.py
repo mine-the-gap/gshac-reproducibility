@@ -392,7 +392,10 @@ def make_limits_figure(rows, out_path):
     sp_time_extrap = np.exp(intercept_t) * n_extrap ** slope_t
     sp_mem_extrap  = np.exp(intercept_m) * n_extrap ** slope_m
 
-    # Dense O(n^2) extrapolation from last measured point
+    # Dense O(n^2) PROJECTION (not measured): the dense baseline is never run past ~50K,
+    # so anchor to the last measured dense point (n_ref, t_ref/m_ref) and scale as n^2.
+    # These *_extrap arrays feed only the DOTTED, O(n^2)-labeled projection lines below;
+    # they are never plotted as or mixed with measured markers.
     dn_valid = ~np.isnan(dn_time)
     if dn_valid.any():
         n_ref = ns[dn_valid][-1]

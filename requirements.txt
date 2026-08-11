@@ -1,5 +1,22 @@
-gshac[plot,geo] @ git+https://github.com/vwmaus/gshac.git
-fastcluster
-libpysal>=4.9
-spopt>=0.6
-hdbscan
+# GSHAC benchmark dependencies — pinned for reproducibility (TSAS reproducibility track).
+#
+# The GSHAC library itself is pinned to the reproducibility release tag 1.0.1.
+# These are the direct dependencies of the benchmark/figure/table scripts at the
+# exact versions used to produce the reported results. For a byte-for-byte lock of
+# the *entire* transitive environment, install requirements-lock.txt instead.
+
+gshac[plot,geo] @ git+https://github.com/mine-the-gap/gshac.git@1.0.1
+
+# Dense HAC baseline + spatial/clustering comparators (benchmark-only)
+fastcluster==1.3.0
+libpysal==4.14.1
+spopt==0.7.0
+hdbscan==0.8.42
+
+# Scientific stack used directly by the benchmark/figure/table scripts
+numpy==2.4.3
+scipy==1.17.1
+scikit-learn==1.8.0
+pandas==3.0.1
+matplotlib==3.10.8
+pyproj==3.7.2

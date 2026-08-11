@@ -1,0 +1,6 @@
+n,mcs,time_s,kind,slope
+10000,5,2.8377,measured,
+25000,5,15.5248,measured,
+50000,5,58.5586,measured,
+100000,5,225.5705,measured,
+2000000,5,65676.0,extrapolated_geonames_2M,1.9

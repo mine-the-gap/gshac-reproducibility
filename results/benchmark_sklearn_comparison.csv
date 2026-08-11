@@ -1,0 +1,10 @@
+scenario,n,h_max_km,h_cut_km,linkage,n_dense,n_sparse_ours,n_sklearn_conn,our_ari,sklearn_ari,sklearn_correct,our_correct
+moderate,500,10.0,5.0,single,49,49,49,1.0,1.0,True,True
+moderate,500,10.0,5.0,complete,49,49,54,1.0,0.953935,False,True
+moderate,500,10.0,5.0,average,49,49,50,1.0,0.976145,False,True
+moderate,1000,10.0,5.0,single,49,49,49,1.0,1.0,True,True
+moderate,1000,10.0,5.0,complete,49,49,63,1.0,0.910383,False,True
+moderate,1000,10.0,5.0,average,49,49,50,1.0,0.981609,False,True
+moderate,2500,10.0,5.0,single,48,48,48,1.0,1.0,True,True
+moderate,2500,10.0,5.0,complete,48,48,84,1.0,0.806727,False,True
+moderate,2500,10.0,5.0,average,48,48,50,1.0,0.961679,False,True

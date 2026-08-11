@@ -40,10 +40,13 @@ from pathlib import Path
 
 from gshac.spatial_dist_graph import spatial_dist_graph
 from gshac.sparse_hclust import sparse_hclust, dense_hclust
+from sklearn.metrics import adjusted_rand_score
 
 # Paths relative to repo root (one level up from experiments/)
 _ROOT = os.path.join(os.path.dirname(__file__), "..")
-RESULTS_DIR = os.path.join(_ROOT, "results")
+# GSHAC_FAST writes to a SEPARATE dir so a reduced-scale run never overwrites the
+# expensive full-scale results in results/.
+RESULTS_DIR = os.path.join(_ROOT, "results_fast" if os.environ.get("GSHAC_FAST") == "1" else "results")
 os.makedirs(RESULTS_DIR, exist_ok=True)
 
 # ------------------------------------------------------------------
@@ -133,9 +136,13 @@ def measure_pipeline(build_fn, run_fn):
 # Capped at 50k: n=100k needs ~27-40 GiB (loose/50km) and OOMs a 30 GiB box;
 # scaling-to-millions is now carried by the real-data GeoNames ladder
 # (benchmark_geonames_scaling.py). 50k still shows the crossover + quadratic trend.
-N_SIZES    = [1_000, 5_000, 10_000, 25_000, 50_000]
-H_MAX_VALS = [10_000, 20_000, 50_000]   # metres
-N_REP      = 5
+# Set GSHAC_FAST=1 for a reduced-scale reproducibility check (smaller sizes, fewer
+# reps; see `make reproduce-fast`). The defaults reproduce the paper figures.
+FAST = os.environ.get("GSHAC_FAST") == "1"
+
+N_SIZES    = [1_000, 5_000, 10_000] if FAST else [1_000, 5_000, 10_000, 25_000, 50_000]
+H_MAX_VALS = [10_000, 20_000] if FAST else [10_000, 20_000, 50_000]   # metres
+N_REP      = 1 if FAST else 5   # fast track runs once; validate via the full CI (make compare)
 METHOD     = "single"
 H_CUTS     = list(range(5_000, 55_000, 5_000))  # 5 km to 50 km in 5 km steps
 
@@ -194,8 +201,9 @@ for scenario_name, scenario_cfg in SCENARIOS.items():
             dt = dm = None
 
             valid_cuts = [h for h in H_CUTS if h <= h_max]
-            sparse_counts_rep0 = None
+            sparse_labels_rep0 = None
             config_all_agree = True
+            config_min_ari = 1.0
             exact_mode = "vs_dense" if run_dense else "reproducibility"
 
             for rep in range(N_REP):
@@ -226,17 +234,30 @@ for scenario_name, scenario_cfg in SCENARIOS.items():
                 # --- Correctness check (consolidates validate_correctness.py) ---
                 # AFTER measure*(): the peaks are already captured, so comparing the
                 # ~KB label arrays cannot perturb the timing/memory measurements.
-                sparse_counts = {h: int(np.unique(sp_res["labels"][h]).size)
-                                 for h in valid_cuts}
+                # Exactness validated by PARTITION IDENTITY (adjusted_rand_score == 1.0),
+                # not merely equal cluster COUNT: ARI is 1.0 iff the two labelings induce
+                # the same partition (permutation-invariant), so a matching count that hid
+                # a different membership is still caught. Compared AFTER measure*(), so the
+                # timing/memory peaks are unaffected.
                 if run_dense:
-                    rep_agree = all(                       # exactness: sparse == dense
-                        int(np.unique(dn_res["labels"][h]).size) == sparse_counts[h]
-                        for h in valid_cuts)
+                    rep_aris = [adjusted_rand_score(dn_res["labels"][h],
+                                                    sp_res["labels"][h])
+                                for h in valid_cuts]
+                    rep_min_ari = min(rep_aris) if rep_aris else 1.0
+                    rep_agree = (rep_min_ari == 1.0)             # exactness: sparse == dense
                 else:
-                    rep_agree = (sparse_counts_rep0 is None      # reproducibility
-                                 or sparse_counts == sparse_counts_rep0)
+                    # reproducibility: the deterministic pipeline must return byte-identical
+                    # labels across reps on identical input (stronger than equal counts).
+                    rep_min_ari = ""
+                    rep_agree = (sparse_labels_rep0 is None
+                                 or all(np.array_equal(sp_res["labels"][h],
+                                                       sparse_labels_rep0[h])
+                                        for h in valid_cuts))
                 if rep == 0:
-                    sparse_counts_rep0 = sparse_counts
+                    sparse_labels_rep0 = {h: np.asarray(sp_res["labels"][h]).copy()
+                                          for h in valid_cuts}
+                if run_dense:
+                    config_min_ari = min(config_min_ari, rep_min_ari)
                 if not rep_agree:
                     config_all_agree = False
                     correctness_all_pass = False
@@ -259,6 +280,7 @@ for scenario_name, scenario_cfg in SCENARIOS.items():
                     "hac_time_s":     round(ht, 4),
                     "exact_mode":     exact_mode,
                     "exact_agree":    rep_agree,
+                    "exact_ari":      round(rep_min_ari, 6) if run_dense else "",
                 })
 
             mean_k = round(2 * n_edges_val / n, 1) if n_edges_val else None
@@ -285,6 +307,7 @@ for scenario_name, scenario_cfg in SCENARIOS.items():
                 # Correctness (consolidated from validate_correctness.py)
                 "exact_mode":      exact_mode,
                 "exact_agree":     config_all_agree,
+                "exact_min_ari":   round(config_min_ari, 6) if run_dense else "",
                 # Dense — mean ± sd
                 "dense_time_mean": round(np.mean(dense_times), 4) if run_dense else "",
                 "dense_time_sd":   round(np.std(dense_times, ddof=1), 4) if run_dense else "",
@@ -384,17 +407,16 @@ for scenario_name, scenario_cfg in SCENARIOS.items():
                 try:
                     sp = sparse_hclust(g, H_CUTS, lnk, coords=pts)
                     dn = dense_hclust(pts, H_CUTS, lnk)
-                    mism = [(h // 1000,
-                             int(np.unique(sp["labels"][h]).size),
-                             int(np.unique(dn["labels"][h]).size))
-                            for h in valid_cuts
-                            if int(np.unique(sp["labels"][h]).size)
-                               != int(np.unique(dn["labels"][h]).size)]
+                    # Partition identity per cut (ARI == 1.0), not just equal counts.
+                    aris = [round(adjusted_rand_score(sp["labels"][h], dn["labels"][h]), 6)
+                            for h in valid_cuts]
+                    mism = [(h // 1000, a) for h, a in zip(valid_cuts, aris) if a != 1.0]
+                    worst_ari = min(aris) if aris else 1.0
                     agree = not mism
-                    note  = "" if agree else f"sparse!=dense at {mism[:3]}"
+                    note  = "" if agree else f"ARI<1 at {mism[:3]}"
                     del sp, dn
                 except Exception as exc:
-                    agree, mism = None, []
+                    agree, mism, worst_ari = None, [], ""
                     note = f"ERROR {type(exc).__name__}: {str(exc)[:60]}"
                 if agree is not True:
                     lx_all_pass = False
@@ -406,6 +428,7 @@ for scenario_name, scenario_cfg in SCENARIOS.items():
                     "n_cuts":       len(valid_cuts),
                     "all_agree":    agree,
                     "n_mismatches": len(mism),
+                    "min_ari":      worst_ari,
                     "note":         note,
                 })
                 print(f"  {scenario_name:<8} n={n:>5,} h={h_max//1000:>2}km "
@@ -445,12 +468,17 @@ for n in SK_N_SIZES:
 
     # Ground truth from dense baseline
     dn = dense_hclust(pts, [SK_H_CUT], METHOD)
-    n_dense = int(np.unique(dn["labels"][SK_H_CUT]).size)
+    dn_labels = dn["labels"][SK_H_CUT]
+    n_dense = int(np.unique(dn_labels).size)
 
     # Our sparse implementation
     g_sk   = spatial_dist_graph(pts, SK_H_MAX)
     sp_res = sparse_hclust(g_sk, [SK_H_CUT], method="single")
-    n_sparse = int(np.unique(sp_res["labels"][SK_H_CUT]).size)
+    sp_labels = sp_res["labels"][SK_H_CUT]
+    n_sparse = int(np.unique(sp_labels).size)
+    # Correctness = PARTITION IDENTITY vs the dense baseline (ARI == 1.0), not an equal
+    # cluster count (which can hide a different membership).
+    our_ari = round(adjusted_rand_score(dn_labels, sp_labels), 6)
 
     # Build binary connectivity matrix once
     conn = geographic_connectivity(pts, SK_H_MAX)
@@ -465,9 +493,11 @@ for n in SK_N_SIZES:
             )
             sk_model.fit(pts)
             n_sklearn = int(sk_model.n_clusters_)
-            sklearn_correct = (n_sklearn == n_dense)
+            sklearn_ari = round(adjusted_rand_score(dn_labels, sk_model.labels_), 6)
+            sklearn_correct = (sklearn_ari == 1.0)
         except Exception as exc:
             n_sklearn = None
+            sklearn_ari = ""
             sklearn_correct = None
             print(f"  sklearn {lnk} n={n}: ERROR {exc}")
 
@@ -480,14 +510,16 @@ for n in SK_N_SIZES:
             "n_dense":        n_dense,
             "n_sparse_ours":  n_sparse,
             "n_sklearn_conn": n_sklearn,
+            "our_ari":        our_ari,
+            "sklearn_ari":    sklearn_ari,
             "sklearn_correct": sklearn_correct,
-            "our_correct":    (n_sparse == n_dense),
+            "our_correct":    (our_ari == 1.0),
         }
         sklearn_rows.append(row)
         print(f"  n={n:,} linkage={lnk:<8} "
               f"dense={n_dense:4d}  sparse_ours={n_sparse:4d}  "
               f"sklearn_conn={str(n_sklearn):>4}  "
-              f"sklearn_ok={sklearn_correct}  our_ok={n_sparse==n_dense}")
+              f"sklearn_ok={sklearn_correct}  our_ok={our_ari == 1.0}")
 
 sk_out = f"{RESULTS_DIR}/benchmark_sklearn_comparison.csv"
 with open(sk_out, "w", newline="") as f:
@@ -497,29 +529,36 @@ with open(sk_out, "w", newline="") as f:
 print(f"\nsklearn comparison written to {sk_out}")
 
 # ------------------------------------------------------------------
-# scikit-learn connectivity timing comparison (single linkage)
+# scikit-learn connectivity timing comparison (single linkage) — END-TO-END
 # ------------------------------------------------------------------
+# Both sides timed as the FULL pipeline (sparse-structure build + clustering) so the
+# comparison is symmetric (see the per-rep note in the loop below).
 
-print("\n--- scikit-learn connectivity timing comparison ---")
+print("\n--- scikit-learn connectivity timing comparison (end-to-end) ---")
 
-SK_TIMING_N = [500, 1_000, 2_500, 5_000, 10_000, 25_000]
+SK_TIMING_N = [500, 1_000, 2_500] if FAST else [500, 1_000, 2_500, 5_000, 10_000, 25_000]
 sk_timing_rows = []
 
 for n in SK_TIMING_N:
     pts = generate_clustered_points(n, sk_cfg["n_centres"], sk_spread)
 
     our_times, sk_times = [], []
-    n_clusters_ours = n_clusters_sk = None
+    n_clusters_ours = n_clusters_sk = timing_ari = None
 
     for rep in range(N_REP):
-        # Our approach
-        g_t = spatial_dist_graph(pts, SK_H_MAX)
-        _, ht, _ = measure(lambda: sparse_hclust(g_t, [SK_H_CUT], method="single"))
-        our_times.append(ht)
+        # FAIR end-to-end timing: both sides are timed from raw points all the way to
+        # labels, INCLUDING sparse-structure construction. Timing only the agglomeration
+        # phase would be unfair — GSHAC would reuse distances precomputed in an untimed
+        # graph build, whereas sklearn's fit recomputes distances for the connected pairs.
+        # The full pipeline is what a user actually runs and makes the comparison symmetric.
+        def run_ours():
+            g_t = spatial_dist_graph(pts, SK_H_MAX)
+            return sparse_hclust(g_t, [SK_H_CUT], method="single")
+        r_ours, ot, _ = measure(run_ours)
+        our_times.append(ot)
 
-        # sklearn connectivity HAC
-        conn = geographic_connectivity(pts, SK_H_MAX)
         def run_sklearn():
+            conn = geographic_connectivity(pts, SK_H_MAX)
             m = AgglomerativeClustering(
                 n_clusters=None, distance_threshold=SK_H_CUT,
                 connectivity=conn, linkage="single",
@@ -530,9 +569,10 @@ for n in SK_TIMING_N:
         sk_times.append(st)
 
         if rep == 0:
-            r_ours = sparse_hclust(g_t, [SK_H_CUT], method="single")
             n_clusters_ours = int(np.unique(r_ours["labels"][SK_H_CUT]).size)
             n_clusters_sk = int(sk_model.n_clusters_)
+            timing_ari = round(adjusted_rand_score(
+                r_ours["labels"][SK_H_CUT], sk_model.labels_), 6)
 
     our_mean = np.mean(our_times)
     sk_mean  = np.mean(sk_times)
@@ -551,7 +591,8 @@ for n in SK_TIMING_N:
         "speedup":            speedup,
         "n_clusters_ours":    n_clusters_ours,
         "n_clusters_sklearn": n_clusters_sk,
-        "results_agree":      (n_clusters_ours == n_clusters_sk),
+        "ari":                timing_ari,
+        "results_agree":      (timing_ari == 1.0),
     })
     print(f"  n={n:>6,}  ours={our_mean:.4f}±{np.std(our_times,ddof=1):.4f}s  "
           f"sklearn={sk_mean:.4f}±{np.std(sk_times,ddof=1):.4f}s  "
@@ -600,8 +641,8 @@ except ImportError:
     print("    Install with: pip install libpysal")
 
 if _PYSAL:
-    PYSAL_N_SIZES    = [500, 1_000, 2_500, 5_000, 10_000, 25_000]
-    PYSAL_H_MAX_VALS = [10_000, 20_000]
+    PYSAL_N_SIZES    = [500, 1_000, 2_500] if FAST else [500, 1_000, 2_500, 5_000, 10_000, 25_000]
+    PYSAL_H_MAX_VALS = [10_000] if FAST else [10_000, 20_000]
     PYSAL_SCENARIOS  = ["tight", "moderate", "loose"]
 
     pysal_rows = []

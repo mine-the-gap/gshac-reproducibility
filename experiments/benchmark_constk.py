@@ -42,7 +42,9 @@ from gshac.spatial_dist_graph import spatial_dist_graph
 from gshac.sparse_hclust import sparse_hclust, dense_hclust
 
 _ROOT = os.path.join(os.path.dirname(__file__), "..")
-RESULTS_DIR = os.path.join(_ROOT, "results")
+# GSHAC_FAST writes to a SEPARATE dir so a reduced-scale run never overwrites the
+# expensive full-scale results in results/.
+RESULTS_DIR = os.path.join(_ROOT, "results_fast" if os.environ.get("GSHAC_FAST") == "1" else "results")
 FIGURES_DIR = os.path.join(_ROOT, "paper")  # fig_constk.pdf is included by main.tex
 os.makedirs(RESULTS_DIR, exist_ok=True)
 os.makedirs(FIGURES_DIR, exist_ok=True)
@@ -56,11 +58,14 @@ H_MAX       = 20_000        # 20 km — matches the real-world stars in fig_limi
 # k=126 matches the empirical mean k of GeoNames-2M at h_max = 20 km, which is
 # the dominant green-star reference in fig_limits; the other values bracket
 # it to show that slopes do not depend on the chosen density.
-K_TARGETS   = [20, 50, 126, 200]
+# Set GSHAC_FAST=1 for a reduced-scale reproducibility check (see make reproduce-fast).
+FAST = os.environ.get("GSHAC_FAST") == "1"
+K_TARGETS   = [50, 126] if FAST else [20, 50, 126, 200]
 PRIMARY_K   = 126           # primary k for tab_constk and the fig_limits blue line
 METHOD      = "single"
-N_REP       = 5
-N_SIZES     = [1_000, 5_000, 10_000, 25_000, 50_000, 100_000, 250_000, 500_000]
+N_REP       = 1 if FAST else 5   # fast track runs once; validate via the full CI (make compare)
+N_SIZES     = ([1_000, 5_000, 25_000, 100_000] if FAST
+               else [1_000, 5_000, 10_000, 25_000, 50_000, 100_000, 250_000, 500_000])
 
 
 def domain_for_k(n, h_max, k_target):
@@ -320,7 +325,10 @@ if __name__ == "__main__":
     ax_mem.grid(True, which="both", linestyle=":", linewidth=0.5, alpha=0.5)
 
     fig.tight_layout()
-    fig_path = os.path.join(FIGURES_DIR, "fig_constk.pdf")
+    # FAST mode uses reduced data — never overwrite the tracked paper figure with it;
+    # write a clearly-named copy under results/ instead.
+    fig_path = (os.path.join(RESULTS_DIR, "fig_constk_fast.pdf") if FAST
+                else os.path.join(FIGURES_DIR, "fig_constk.pdf"))
     fig.savefig(fig_path, bbox_inches="tight")
     plt.close(fig)
     print(f"Saved {fig_path}")

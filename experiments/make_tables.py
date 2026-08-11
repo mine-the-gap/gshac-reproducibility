@@ -312,8 +312,10 @@ def make_tab_sklearn():
 
     content = f"""\\begin{{table}}[t]
 \\caption{{GSHAC vs.\\ scikit-learn connectivity HAC (single linkage,
-  moderate, \\(\\hmax = 10\\)\\,km, \\(h_{{\\text{{cut}}}} = 5\\)\\,km).
-  Cluster counts agree exactly.}}
+  moderate, \\(\\hmax = 10\\)\\,km, \\(h_{{\\text{{cut}}}} = 5\\)\\,km), timed
+  \\emph{{end-to-end}} (sparse-structure construction + clustering) so both
+  sides are measured symmetrically. Both recover the identical partition
+  (ARI\\,=\\,1.0).}}
 \\label{{tab:sklearn}}
 \\small
 \\begin{{tabular}}{{r r r r r}}

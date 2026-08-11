@@ -21,7 +21,7 @@ Outputs:
 
 from __future__ import annotations
 
-import sys, time, gc, tracemalloc, csv, warnings
+import sys, os, time, gc, tracemalloc, csv, warnings
 import numpy as np
 from pathlib import Path
 
@@ -29,18 +29,20 @@ from gshac.spatial_dist_graph import spatial_dist_graph
 from gshac.sparse_hclust import sparse_hclust
 
 ROOT = Path(__file__).parent.parent
-RESULTS_DIR = ROOT / "results"
+RESULTS_DIR = ROOT / ("results_fast" if os.environ.get("GSHAC_FAST") == "1" else "results")
 RESULTS_DIR.mkdir(exist_ok=True)
 
-N_REP          = 5
-N_REP_HDBSCAN  = 5
-N_SAMPLE       = 2_000_000        # GeoNames stratified sample (base)
-COMPARISON_N   = 100_000          # subset for the head-to-head comparison
+# Set GSHAC_FAST=1 for a reduced-scale reproducibility check (see make reproduce-fast).
+FAST           = os.environ.get("GSHAC_FAST") == "1"
+N_REP          = 1 if FAST else 5   # fast track runs once; validate via the full CI (make compare)
+N_REP_HDBSCAN  = 1 if FAST else 5
+N_SAMPLE       = 200_000 if FAST else 2_000_000   # GeoNames stratified sample (base)
+COMPARISON_N   = 20_000 if FAST else 100_000      # subset for the head-to-head comparison
 H_MAX          = 10_000           # metres (matches the GeoNames scaling ladder)
 H_CUTS         = [5_000, 10_000]  # GSHAC cut heights for cluster counts
 HDB_MCS        = [2, 5]
 GEONAMES_N     = 2_000_000        # extrapolation target
-PROBE_N        = [10_000, 25_000, 50_000, 100_000]
+PROBE_N        = [5_000, 10_000, 20_000] if FAST else [10_000, 25_000, 50_000, 100_000]
 PROBE_MCS      = 5
 SEED           = 42
 
@@ -203,6 +205,11 @@ if __name__ == "__main__":
         probe.append({"n": pn, "time_s": round(t, 4)})
         print(f"  n={pn:>7,}: {t:.3f} s")
         gc.collect()
+    # Project HDBSCAN's cost to the full 2M sample WITHOUT running it there (hours-long).
+    # Fit a power law t = e^intercept * n^slope to the MEASURED probe timings above
+    # (real run_hdbscan_once calls) and evaluate it at n=2M. The result is written with
+    # kind="extrapolated_geonames_2M" (never "measured") and the fitted slope is recorded,
+    # so the projection is fully reproducible and clearly flagged as an estimate.
     ns = np.array([p["n"] for p in probe], dtype=float)
     tsv = np.array([p["time_s"] for p in probe], dtype=float)
     slope, intercept = np.polyfit(np.log(ns), np.log(tsv), 1)

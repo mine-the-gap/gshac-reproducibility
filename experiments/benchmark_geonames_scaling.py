@@ -27,15 +27,17 @@ import numpy as np
 from pathlib import Path
 
 ROOT = Path(__file__).parent.parent
-RESULTS_DIR = ROOT / "results"
+RESULTS_DIR = ROOT / ("results_fast" if os.environ.get("GSHAC_FAST") == "1" else "results")
 RESULTS_DIR.mkdir(exist_ok=True)
 
 _MIB = 1024 ** 2
 _GIB = 1024 ** 3
 
+# Set GSHAC_FAST=1 for a reduced-scale reproducibility check (see make reproduce-fast).
+FAST     = os.environ.get("GSHAC_FAST") == "1"
 H_MAX    = 10_000   # metres; 10 km is feasible to 2M (~8.6 GiB graph)
-N_LADDER = [100_000, 250_000, 500_000, 1_000_000, 2_000_000]
-N_REP    = 5
+N_LADDER = [50_000, 100_000, 200_000] if FAST else [100_000, 250_000, 500_000, 1_000_000, 2_000_000]
+N_REP    = 1 if FAST else 5
 SEED     = 42
 
 

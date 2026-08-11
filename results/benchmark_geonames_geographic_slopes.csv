@@ -1,0 +1,3 @@
+metric,h_max_m,slope,n_min,n_max
+time,10000,1.142,100000,2000000
+memory,10000,0.977,100000,2000000
