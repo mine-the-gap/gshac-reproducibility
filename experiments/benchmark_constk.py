@@ -31,6 +31,8 @@ import tracemalloc
 import csv
 import gc
 import math
+import json
+import subprocess
 import numpy as np
 import matplotlib
 matplotlib.use("Agg")
@@ -118,6 +120,49 @@ def measure_pipeline(build_fn, run_fn):
 
 
 # ------------------------------------------------------------------
+# Cold-process measurement (one-shot user cost)
+# ------------------------------------------------------------------
+# Each rep is measured in a fresh subprocess so the dense baseline pays its full
+# O(n^2)-matrix allocation/first-touch cost every time --- the cost a user incurs
+# running the method ONCE --- rather than the amortised cost of a long-lived process.
+# Workers regenerate the identical seeded points, so only scalar results cross the
+# process boundary. Mirrors the subprocess isolation used by the GeoNames benchmarks.
+
+def _worker(params_json):
+    # ONE measurement per fresh process: either the dense baseline OR the sparse
+    # pipeline (never both), so each side pays the full cold-process cost symmetrically.
+    p = json.loads(params_json)
+    pts = generate_uniform_points(p["n"], p["domain_m"])
+    if p["kind"] == "dense":
+        _, dt, dm = measure(lambda: dense_hclust(pts, p["cuts"], p["method"]))
+        out = {"dense_time": dt, "dense_mem": dm}
+    else:  # sparse pipeline (graph + HAC)
+        graph, _r, gt, ht, sm = measure_pipeline(
+            lambda: spatial_dist_graph(pts, p["h_max"]),
+            lambda g: sparse_hclust(g, p["cuts"], p["method"]))
+        out = dict(graph_time=gt, hac_time=ht, sparse_mem=sm, n_edges=int(graph["n_edges"]))
+    print("RESULT " + json.dumps(out), flush=True)
+
+
+if len(sys.argv) > 1 and sys.argv[1] == "--worker":
+    import warnings as _w
+    _w.filterwarnings("ignore")
+    _worker(sys.argv[2])
+    sys.exit(0)
+
+
+def measure_cold(params):
+    """One dense+sparse measurement in a FRESH subprocess (cold allocator)."""
+    cp = subprocess.run([sys.executable, __file__, "--worker", json.dumps(params)],
+                        capture_output=True, text=True)
+    for line in cp.stdout.splitlines():
+        if line.startswith("RESULT "):
+            return json.loads(line[len("RESULT "):])
+    raise RuntimeError(f"cold worker failed (rc={cp.returncode}): "
+                       f"{cp.stderr.strip()[-800:]}")
+
+
+# ------------------------------------------------------------------
 # Run benchmark
 # ------------------------------------------------------------------
 
@@ -146,35 +191,28 @@ if __name__ == "__main__":
             print(f"  n = {n:>7,}  domain = {domain_m/1000:>8.1f} km{tag}",
                   end="", flush=True)
 
-            pts = generate_uniform_points(n, domain_m)
-
             dense_times, dense_mems = [], []
             sparse_times, sparse_mems = [], []
             graph_times, hac_times = [], []
             n_edges_val = mean_k_val = None
-            dt = dm = None
+            wp = dict(n=n, domain_m=domain_m, h_max=H_MAX, cuts=h_cuts,
+                      method=METHOD, run_dense=run_dense)
 
+            # dense and sparse EACH in their own fresh COLD subprocess (symmetric).
             for rep in range(N_REP):
                 if run_dense:
-                    _, dt, dm = measure(lambda: dense_hclust(pts, h_cuts, METHOD))
-                    dense_times.append(dt)
-                    dense_mems.append(dm)
-                    gc.collect()
-
-                graph, _res, gt, ht, sm = measure_pipeline(
-                    lambda: spatial_dist_graph(pts, H_MAX),
-                    lambda g: sparse_hclust(g, h_cuts, METHOD))
+                    d = measure_cold({**wp, "kind": "dense"})
+                    dense_times.append(d["dense_time"])
+                    dense_mems.append(d["dense_mem"])
+                s = measure_cold({**wp, "kind": "sparse"})
+                gt, ht, sm = s["graph_time"], s["hac_time"], s["sparse_mem"]
                 graph_times.append(gt)
                 hac_times.append(ht)
                 sparse_times.append(gt + ht)
                 sparse_mems.append(sm)
-
                 if rep == 0:
-                    n_edges_val = graph["n_edges"]
+                    n_edges_val = s["n_edges"]
                     mean_k_val = round(2 * n_edges_val / n, 1)
-
-                del graph, _res
-                gc.collect()
 
             row = {
                 "n":                n,
@@ -211,7 +249,6 @@ if __name__ == "__main__":
             else:
                 print(f"  k={mean_k_val:>5}  sparse={row['sparse_time_mean']:.3f}s/{row['sparse_mem_mean']:.0f}MiB")
 
-            del pts
             gc.collect()
         print()
 
