@@ -2,14 +2,14 @@
 make_tables.py
 
 Generate all paper tables as standalone LaTeX files from benchmark CSV results.
-Each table is saved as paper/tab_<name>.tex and can be included in main.tex
+Each table is saved as tables/tab_<name>.tex and is included by the manuscript
 via \\input{tab_<name>.tex}.
 
 Run after all benchmarks complete:
 
     python3 experiments/make_tables.py
 
-Outputs (in paper/):
+Outputs (in tables/):
     tab_summary.tex           — Speedup across density scenarios
     tab_constk.tex            — Constant-k scaling
     tab_pysal.tex             — Graph-construction: GSHAC vs PySAL DistanceBand
@@ -27,8 +27,8 @@ import sys
 
 _ROOT = os.path.join(os.path.dirname(__file__), "..")
 RESULTS_DIR = os.path.join(_ROOT, "results")
-FIGURES_DIR = os.path.join(_ROOT, "paper")
-os.makedirs(FIGURES_DIR, exist_ok=True)
+TABLES_DIR = os.path.join(_ROOT, "tables")
+os.makedirs(TABLES_DIR, exist_ok=True)
 
 
 # ── Helpers ───────────────────────────────────────────────────────────
@@ -50,8 +50,8 @@ def read_csv(filename):
 
 
 def write_table(name, content):
-    """Write a .tex file to the figures directory."""
-    path = os.path.join(FIGURES_DIR, f"tab_{name}.tex")
+    """Write a .tex file to the tables directory."""
+    path = os.path.join(TABLES_DIR, f"tab_{name}.tex")
     with open(path, "w") as f:
         f.write(content)
     print(f"  Saved {path}")
@@ -546,4 +546,4 @@ if __name__ == "__main__":
     make_tab_geonames()
     make_tab_hdbscan()
 
-    print("Done — all tables written to paper/")
+    print("Done — all tables written to tables/")

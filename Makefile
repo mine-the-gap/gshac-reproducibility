@@ -1,13 +1,13 @@
-.PHONY: setup experiments reproduce-fast compare budget budget-fast figures tables paper clean all
+.PHONY: setup experiments reproduce-fast compare budget budget-fast figures tables clean all
 
 VENV = .venv
 PYTHON = $(VENV)/bin/python3
 PIP = $(VENV)/bin/pip
 
-## Full pipeline: setup -> experiments -> figures -> tables -> paper
+## Full pipeline: setup -> experiments -> figures -> tables
 ## Synthetic datasets are generated internally by the benchmark scripts; there is
 ## no separate data-generation step.
-all: setup experiments figures tables paper
+all: setup experiments figures tables
 
 ## Create virtual environment and install all dependencies (incl. C extension)
 setup:
@@ -31,7 +31,7 @@ experiments:
 ## Fast reproducibility check (TSAS reproducibility track): runs every benchmark at
 ## reduced scale (small samples, fewer reps) via GSHAC_FAST=1 to verify the pipeline
 ## and the paper's CORE FINDINGS in well under an hour on a commodity machine. It does
-## NOT regenerate the paper figures/tables (the reduced CSVs are intentionally sparse);
+## NOT regenerate the figures/tables (the reduced CSVs are intentionally sparse);
 ## use the full `make all` for that. Self-contained: `make setup` runs first.
 reproduce-fast: setup
 	GSHAC_FAST=1 $(PYTHON) experiments/demo_exactness.py
@@ -70,23 +70,14 @@ budget:
 budget-fast:
 	GSHAC_FAST=1 $(PYTHON) experiments/measure_budget.py
 
-## Generate all paper figures from results
+## Generate all figures from results (into figures/)
 figures:
 	$(PYTHON) experiments/make_figures.py
 
-## Generate all paper tables from results
+## Generate all tables from results (into tables/)
 tables:
 	$(PYTHON) experiments/make_tables.py
 
-## Compile the LaTeX paper to PDF
-paper:
-	cd paper && \
-	  pdflatex -interaction=nonstopmode main.tex && \
-	  bibtex main && \
-	  pdflatex -interaction=nonstopmode main.tex && \
-	  pdflatex -interaction=nonstopmode main.tex
-
-## Remove generated figures, results, and LaTeX build artifacts
+## Remove generated results (regenerate with `make experiments figures tables`)
 clean:
 	rm -rf results/ results_fast/
-	cd paper && rm -f main.aux main.bbl main.blg main.log main.out main.pdf comment.cut texput.log

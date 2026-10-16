@@ -14,17 +14,20 @@ with O(n·k̄) time and memory, where k̄ is the mean neighbourhood size. When t
 has bounded local density (k̄ does not grow with n), this is near-linear and scales
 to millions of points on a workstation.
 
-The GSHAC library itself lives at [mine-the-gap/gshac](https://github.com/mine-the-gap/gshac).
-This repository contains the **benchmarks, figure/table generators, and paper source**.
+The GSHAC library itself lives at [mine-the-gap/gshac](https://github.com/mine-the-gap/gshac),
+and the manuscript is maintained separately. This repository is the **reproducibility
+artifact**: the benchmarks, the data pipeline, and the figure/table generators whose
+outputs the paper consumes.
 
 ## Repository layout
 
 ```
 experiments/   benchmark + figure/table scripts (see table below)
 results/        generated CSVs — every number the paper cites (committed; `make compare`'s reference)
-paper/          LaTeX source + generated figures (fig_*.pdf) and tables (tab_*.tex)
+figures/        generated figures (fig_*.pdf), consumed by the manuscript
+tables/         generated tables (tab_*.tex), consumed by the manuscript
 data/           input datasets (git-ignored; GeoNames auto-downloads, see Data)
-Makefile        the full pipeline: setup → experiments → figures → tables → paper
+Makefile        the full pipeline: setup → experiments → figures → tables
 ```
 
 ## System requirements
@@ -70,17 +73,16 @@ the entire transitive environment used to produce the reported numbers, install
 ```bash
 make reproduce-fast # quick check: every benchmark at reduced scale, core findings in <1 h
 make experiments    # run all benchmarks  (~6 h; GeoNames threshold sweep dominates)
-make figures        # regenerate paper/fig_*.pdf  from results/*.csv
-make tables         # regenerate paper/tab_*.tex  from results/*.csv
-make paper          # compile paper/main.tex to PDF
-make all            # setup → experiments → figures → tables → paper  (the master script)
-make clean          # remove results/, figures/, and LaTeX build artifacts
+make figures        # regenerate figures/fig_*.pdf  from results/*.csv
+make tables         # regenerate tables/tab_*.tex  from results/*.csv
+make all            # setup → experiments → figures → tables  (the master script)
+make clean          # remove results/ and results_fast/
 ```
 
 **`make all`** is the single master command: it sets up the environment, fetches data,
-reruns every experiment, regenerates all figures and tables in paper order, and compiles
-the PDF. The full run takes ~6 h and the heaviest GeoNames point peaks near the machine's
-RAM (see hardware note below).
+reruns every experiment, and regenerates all figures and tables from the results. The full
+run takes ~6 h and the heaviest GeoNames point peaks near the machine's RAM (see hardware
+note below).
 
 **`make reproduce-fast`** is the recommended first step for an artifact reviewer: it runs
 every benchmark at reduced scale (smaller samples; via `GSHAC_FAST=1`) so the paper's
@@ -128,13 +130,13 @@ they measure:
 | `benchmark.py` | Synthetic fixed-domain benchmark: 3 density scenarios × sizes (≤ 50k) × `h_max`, 5 reps. Dense (`fastcluster`) vs GSHAC time + peak memory, plus PySAL and scikit-learn connectivity baselines. | `benchmark_python.csv` (+ `_reps`), `benchmark_pysal.csv`, `benchmark_sklearn_comparison.csv`, `benchmark_sklearn_timing.csv`; `fig_scaling.pdf`, `tab_summary/pysal/sklearn.tex` |
 | `benchmark_constk.py` | Constant-`k̄` scaling: density held bounded as n grows → near-linear time and memory (the headline complexity claim). | `benchmark_constk.csv` (+ `_slopes`), `fig_constk.pdf`, `tab_constk.tex` |
 | **Real-world (GeoNames — open data, ~2 M sample)** | | |
-| `benchmark_geonames.py` | Threshold sweep at `h_max ∈ {1, 5, 10, 20} km` on the 2 M stratified sample; time, 3-phase peak memory, component structure, and the dense sizes avoided. Each rep runs in a fresh subprocess (20 km peaks ~28 GiB). | `benchmark_geonames.csv`, `tab_geonames.tex` |
+| `benchmark_geonames.py` | Threshold sweep at `h_max ∈ {1, 5, 10, 20} km` on the 2 M stratified sample; time, 3-phase peak memory, component structure, and the dense sizes avoided. Each rep runs in a fresh subprocess (20 km peaks ~22 GiB). | `benchmark_geonames.csv`, `tab_geonames.tex` |
 | `benchmark_geonames_geographic.py` | **Headline scaling:** grow the geographic *window* at constant density (widening longitude strip) → near-linear (k̄ stays bounded). | `benchmark_geonames_geographic.csv` (+ `_slopes`) |
 | `benchmark_geonames_scaling.py` | **Limitations:** fixed-extent subsampling → density (and k̄) grow ∝ n → memory ~quadratic. The adversarial regime; GSHAC still *runs* where dense cannot. | `benchmark_geonames_scaling.csv` (+ `_slopes`) |
 | `benchmark_hdbscan.py` | Resource comparison vs scikit-learn HDBSCAN on a 100k GeoNames subset (5 reps each), plus a scaling probe extrapolating HDBSCAN to 2 M. Non-equivalent outputs — resource profiles only. | `benchmark_hdbscan.csv` (+ `_scaling`), `tab_hdbscan.tex` |
 | **Build** | | |
-| `make_figures.py` | Regenerate every `paper/fig_*.pdf` from `results/*.csv`. | `fig_*.pdf`, `scenario_illustration.csv`, `scaling_slopes.csv` |
-| `make_tables.py` | Regenerate every `paper/tab_*.tex` from `results/*.csv`. | `tab_*.tex` |
+| `make_figures.py` | Regenerate every `figures/fig_*.pdf` from `results/*.csv`. | `fig_*.pdf`, `scenario_illustration.csv`, `scaling_slopes.csv` |
+| `make_tables.py` | Regenerate every `tables/tab_*.tex` from `results/*.csv`. | `tab_*.tex` |
 
 ## Data
 

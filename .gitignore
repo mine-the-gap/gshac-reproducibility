@@ -1,11 +1,10 @@
 # Generated outputs. The full-scale results/*.csv ARE tracked — they are the baseline the
 # paper cites and `make compare`'s reference; git versions any changes. Fast-track runs and
-# budget logs stay untracked. Paper figures are tracked under paper/fig_*.pdf.
+# budget logs stay untracked. Generated figures/tables are tracked under figures/ and tables/.
 results_fast/
 results*/run_logs/
 results/*.npy
 data/
-acm-tsas/
 
 # Claude Code local settings
 .claude/
@@ -14,19 +13,6 @@ plan_*
 session-state.md
 tty*
 run.log 
-
-# LaTeX build artifacts
-paper/*.aux
-paper/*.bbl
-paper/*.blg
-paper/*.log
-paper/*.out
-paper/main.pdf
-paper/comment.cut
-paper/*.fdb_latexmk
-paper/*.fls
-paper/*.synctex.gz
-texput.log
 
 # Python
 __pycache__/

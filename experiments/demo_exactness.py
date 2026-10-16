@@ -35,7 +35,7 @@ from gshac.spatial_dist_graph import spatial_dist_graph
 from gshac.sparse_hclust import sparse_hclust
 
 _ROOT = os.path.join(os.path.dirname(__file__), "..")
-FIGURES_DIR = os.path.join(_ROOT, "paper")   # fig_exactness.pdf is \input by main.tex
+FIGURES_DIR = os.path.join(_ROOT, "figures")   # fig_exactness.pdf is consumed by the manuscript (maintained separately)
 RESULTS_DIR = os.path.join(_ROOT, "results_fast" if os.environ.get("GSHAC_FAST") == "1" else "results")
 os.makedirs(FIGURES_DIR, exist_ok=True)
 os.makedirs(RESULTS_DIR, exist_ok=True)

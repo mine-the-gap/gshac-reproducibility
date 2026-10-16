@@ -19,7 +19,7 @@ O(n k) ≈ O(n) in memory, whereas the dense baseline remains O(n²).
 
 Outputs:
   results/benchmark_constk.csv   — one row per (k_target, n) pair
-  paper/fig_constk.pdf           — multi-curve figure (slope-invariance)
+  figures/fig_constk.pdf           — multi-curve figure (slope-invariance)
 """
 
 from __future__ import annotations
@@ -49,7 +49,7 @@ _ROOT = os.path.join(os.path.dirname(__file__), "..")
 # GSHAC_FAST writes to a SEPARATE dir so a reduced-scale run never overwrites the
 # expensive full-scale results in results/.
 RESULTS_DIR = os.path.join(_ROOT, "results_fast" if os.environ.get("GSHAC_FAST") == "1" else "results")
-FIGURES_DIR = os.path.join(_ROOT, "paper")  # fig_constk.pdf is included by main.tex
+FIGURES_DIR = os.path.join(_ROOT, "figures")  # fig_constk.pdf is consumed by the manuscript (maintained separately)
 os.makedirs(RESULTS_DIR, exist_ok=True)
 os.makedirs(FIGURES_DIR, exist_ok=True)
 

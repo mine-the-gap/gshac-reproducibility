@@ -8,11 +8,10 @@
 # Reminder: free RAM first  ->  sudo systemctl stop gdm
 #   (the 20 km GeoNames graph peaks at ~28 GiB on a 30 GiB box).
 #
-# NOT included: `make paper` (PDF compile) — the prose still holds the OLD numbers
-# until the next Claude session revises them; and `make budget budget-fast`
-# (~+4 h, README compute-budget table only — less needed now that every worker
-# records its own peak RSS (rss_mib) and CPU time (cpu_s) in the results CSVs).
-# Run those separately if you want them.
+# The manuscript is maintained in a separate repository; this pipeline only regenerates
+# the figures/tables it consumes. NOT included: `make budget budget-fast` (~+4 h, optional
+# compute-budget table — less needed now that every worker records its own peak RSS
+# (rss_mib) and CPU time (cpu_s) in the results CSVs). Run it separately if you want it.
 
 set -euo pipefail
 
@@ -54,7 +53,7 @@ START=$SECONDS
 #
 # Pipeline (one make invocation, stops on first error):
 #   experiments    -> results/*.csv        (the numbers the paper cites)
-#   figures/tables -> paper/fig_*.pdf, paper/tab_*.tex
+#   figures/tables -> figures/fig_*.pdf, tables/tab_*.tex
 #   reproduce-fast -> results_fast/*.csv
 #   compare        -> fast-vs-full alignment check
 run_pipeline() {

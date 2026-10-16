@@ -6,7 +6,7 @@ Run after benchmark.py completes:
 
     python3 experiments/make_figures.py
 
-Outputs (in paper/):
+Outputs (in figures/):
     fig_scaling.pdf          — 2×3 grid: time (top) + memory (bottom) × 3 h_max
     fig_scenarios.pdf        — illustration of tight / moderate / loose scenarios
     fig_limits.pdf           — scalability projection with dense infeasibility region
@@ -26,7 +26,7 @@ from scipy.spatial import cKDTree
 
 _ROOT = os.path.join(os.path.dirname(__file__), "..")
 RESULTS_DIR = os.path.join(_ROOT, "results")
-FIGURES_DIR = os.path.join(_ROOT, "paper")
+FIGURES_DIR = os.path.join(_ROOT, "figures")
 os.makedirs(FIGURES_DIR, exist_ok=True)
 
 # ── Shared style ──────────────────────────────────────────────────────
