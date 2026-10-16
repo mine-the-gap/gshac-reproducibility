@@ -3,8 +3,8 @@
 # Reproduce that environment with:  pip install -r requirements-lock.txt
 # Python: 3.12.3 (CPython, GCC 13.3.0) on Linux x86_64.
 #
-# The GSHAC library is pinned to release tag 1.0.1:
-gshac[plot,geo] @ git+https://github.com/mine-the-gap/gshac.git@1.0.1
+# The GSHAC library is pinned to release tag 1.1.0:
+gshac[plot,geo] @ git+https://github.com/mine-the-gap/gshac.git@1.1.0
 #
 beautifulsoup4==4.14.3
 certifi==2026.2.25

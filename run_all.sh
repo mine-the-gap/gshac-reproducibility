@@ -10,7 +10,9 @@
 #
 # NOT included: `make paper` (PDF compile) — the prose still holds the OLD numbers
 # until the next Claude session revises them; and `make budget budget-fast`
-# (~+4 h, README compute-budget table only). Run those separately if you want them.
+# (~+4 h, README compute-budget table only — less needed now that every worker
+# records its own peak RSS (rss_mib) and CPU time (cpu_s) in the results CSVs).
+# Run those separately if you want them.
 
 set -euo pipefail
 
@@ -24,6 +26,24 @@ log() { printf '[%s] %s\n' "$(date '+%F %T')" "$*" | tee -a "$LOG"; }
 
 log "=== GSHAC full experiment re-run starting ==="
 log "Reminder: free RAM first (sudo systemctl stop gdm) — 20 km GeoNames graph needs ~28 GiB."
+
+# Provenance: the venv holds an EDITABLE install of the local gshac checkout, so the
+# benchmarked code is whatever that working tree contains — record version, commit,
+# and dirty state so the run is attributable to an exact library state.
+GSHAC_VER=$(.venv/bin/python3 -c 'import importlib.metadata as m; print(m.version("gshac"))' 2>/dev/null || echo '?')
+GSHAC_DIR=$(.venv/bin/python3 -c 'import gshac, pathlib; print(pathlib.Path(gshac.__file__).resolve().parents[2])' 2>/dev/null || echo '')
+if [ -n "$GSHAC_DIR" ] && git -C "$GSHAC_DIR" rev-parse --short HEAD >/dev/null 2>&1; then
+    GSHAC_COMMIT=$(git -C "$GSHAC_DIR" rev-parse --short HEAD)
+    GSHAC_TAG=$(git -C "$GSHAC_DIR" tag --points-at HEAD | tr '\n' ' ')
+    GSHAC_DIRTY=$([ -n "$(git -C "$GSHAC_DIR" status --porcelain --untracked-files=no)" ] && echo ' +DIRTY' || echo '')
+    log "gshac under test: v${GSHAC_VER} @ ${GSHAC_COMMIT} (tags: ${GSHAC_TAG:-none})${GSHAC_DIRTY} [${GSHAC_DIR}]"
+    if [ -n "$GSHAC_DIRTY" ]; then
+        log "WARNING: gshac working tree has uncommitted changes — results will not be attributable to a tag."
+    fi
+else
+    log "gshac under test: v${GSHAC_VER} (non-git install)"
+fi
+
 START=$SECONDS
 
 # Provision only if needed. This repo's .venv is already fully set up (python + all deps

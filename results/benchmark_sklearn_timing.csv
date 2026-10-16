@@ -1,7 +1,7 @@
 scenario,n,h_max_km,h_cut_km,linkage,our_time_mean,our_time_sd,sklearn_conn_time_mean,sklearn_conn_time_sd,speedup,n_clusters_ours,n_clusters_sklearn,ari,results_agree
-moderate,500,10.0,5.0,single,0.0228,0.0008,0.2547,0.0097,11.16,49,49,1.0,True
-moderate,1000,10.0,5.0,single,0.027,0.0007,0.2966,0.0041,11.0,49,49,1.0,True
-moderate,2500,10.0,5.0,single,0.0396,0.0003,0.4666,0.0058,11.77,48,48,1.0,True
-moderate,5000,10.0,5.0,single,0.0887,0.0012,1.0743,0.0285,12.12,49,49,1.0,True
-moderate,10000,10.0,5.0,single,0.3118,0.0191,3.4423,0.0591,11.04,48,48,1.0,True
-moderate,25000,10.0,5.0,single,2.0871,0.2492,18.9747,0.7923,9.09,48,48,1.0,True
+moderate,500,10.0,5.0,single,0.0224,0.0004,0.2497,0.0023,11.15,49,49,1.0,True
+moderate,1000,10.0,5.0,single,0.0265,0.0008,0.2905,0.0051,10.96,49,49,1.0,True
+moderate,2500,10.0,5.0,single,0.0388,0.0002,0.4556,0.0015,11.73,48,48,1.0,True
+moderate,5000,10.0,5.0,single,0.0873,0.0007,1.0621,0.0291,12.17,49,49,1.0,True
+moderate,10000,10.0,5.0,single,0.3052,0.0171,3.2872,0.0958,10.77,48,48,1.0,True
+moderate,25000,10.0,5.0,single,2.0198,0.1777,18.232,0.7047,9.03,48,48,1.0,True

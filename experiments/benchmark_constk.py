@@ -24,6 +24,8 @@ Outputs:
 
 from __future__ import annotations
 
+import _env  # noqa: F401  (pins thread pools to 1 and the paging state; must precede numpy/scipy/sklearn)
+
 import os
 import sys
 import time
@@ -133,6 +135,7 @@ def _worker(params_json):
     # pipeline (never both), so each side pays the full cold-process cost symmetrically.
     p = json.loads(params_json)
     pts = generate_uniform_points(p["n"], p["domain_m"])
+    c0 = time.process_time()  # CPU-time evidence: single-threaded => cpu_s ~= wall
     if p["kind"] == "dense":
         _, dt, dm = measure(lambda: dense_hclust(pts, p["cuts"], p["method"]))
         out = {"dense_time": dt, "dense_mem": dm}
@@ -141,6 +144,9 @@ def _worker(params_json):
             lambda: spatial_dist_graph(pts, p["h_max"]),
             lambda g: sparse_hclust(g, p["cuts"], p["method"]))
         out = dict(graph_time=gt, hac_time=ht, sparse_mem=sm, n_edges=int(graph["n_edges"]))
+    out["cpu_s"] = round(time.process_time() - c0, 4)
+    import resource
+    out["rss_mib"] = round(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024, 1)  # peak RSS cross-check for tracemalloc
     print("RESULT " + json.dumps(out), flush=True)
 
 
@@ -199,12 +205,18 @@ if __name__ == "__main__":
                       method=METHOD, run_dense=run_dense)
 
             # dense and sparse EACH in their own fresh COLD subprocess (symmetric).
+            dense_cpus, dense_rsss = [], []
+            sparse_cpus, sparse_rsss = [], []
             for rep in range(N_REP):
                 if run_dense:
                     d = measure_cold({**wp, "kind": "dense"})
                     dense_times.append(d["dense_time"])
                     dense_mems.append(d["dense_mem"])
+                    dense_cpus.append(d["cpu_s"])
+                    dense_rsss.append(d["rss_mib"])
                 s = measure_cold({**wp, "kind": "sparse"})
+                sparse_cpus.append(s["cpu_s"])
+                sparse_rsss.append(s["rss_mib"])
                 gt, ht, sm = s["graph_time"], s["hac_time"], s["sparse_mem"]
                 graph_times.append(gt)
                 hac_times.append(ht)
@@ -233,6 +245,11 @@ if __name__ == "__main__":
                 "hac_time_mean":    round(np.mean(hac_times), 4),
                 "speedup_time":     round(np.mean(dense_times) / np.mean(sparse_times), 2) if run_dense else "",
                 "speedup_mem":      round(np.mean(dense_mems) / np.mean(sparse_mems), 2) if run_dense else "",
+                # Single-threadedness evidence and peak-RSS cross-check.
+                "dense_cpu_mean":   round(np.mean(dense_cpus), 4) if run_dense else "",
+                "dense_rss_mean":   round(np.mean(dense_rsss), 1) if run_dense else "",
+                "sparse_cpu_mean":  round(np.mean(sparse_cpus), 4),
+                "sparse_rss_mean":  round(np.mean(sparse_rsss), 1),
             }
             rows.append(row)
 

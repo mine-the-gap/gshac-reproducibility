@@ -56,7 +56,7 @@ source .venv/bin/activate
 ```
 
 All dependencies are **version-pinned** for reproducibility. `requirements.txt` pins the
-direct dependencies and the GSHAC library to release tag **`1.0.1`**
+direct dependencies and the GSHAC library to release tag **`1.1.0`**
 ([mine-the-gap/gshac](https://github.com/mine-the-gap/gshac)). For a byte-for-byte lock of
 the entire transitive environment used to produce the reported numbers, install
 `requirements-lock.txt` instead:
@@ -158,7 +158,7 @@ they measure:
   into the scripts.
 - **Determinism:** all synthetic data and all sampling use a fixed seed (`42`), so a run
   on the same environment reproduces the same partitions and the same row-level numbers.
-- **Pinned environment:** `requirements.txt` (direct deps + `1.0.1`) and
+- **Pinned environment:** `requirements.txt` (direct deps + `1.1.0`) and
   `requirements-lock.txt` (full transitive lock) fix every package version.
 - Memory is reported in **binary units** (MiB / GiB / TiB) and as graph-phase,
   HAC-phase, and whole-pipeline `tracemalloc` peaks.

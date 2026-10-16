@@ -1,11 +1,11 @@
 # GSHAC benchmark dependencies — pinned for reproducibility (TSAS reproducibility track).
 #
-# The GSHAC library itself is pinned to the reproducibility release tag 1.0.1.
+# The GSHAC library itself is pinned to the reproducibility release tag 1.1.0.
 # These are the direct dependencies of the benchmark/figure/table scripts at the
 # exact versions used to produce the reported results. For a byte-for-byte lock of
 # the *entire* transitive environment, install requirements-lock.txt instead.
 
-gshac[plot,geo] @ git+https://github.com/mine-the-gap/gshac.git@1.0.1
+gshac[plot,geo] @ git+https://github.com/mine-the-gap/gshac.git@1.1.0
 
 # Dense HAC baseline + spatial/clustering comparators (benchmark-only)
 fastcluster==1.3.0

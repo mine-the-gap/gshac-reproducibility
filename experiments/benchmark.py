@@ -28,6 +28,8 @@ Outputs (relative to repo root, i.e. one level up from this script):
 
 from __future__ import annotations
 
+import _env  # noqa: F401  (pins thread pools to 1 and the paging state; must precede numpy/scipy/sklearn)
+
 import os
 import sys
 import time
@@ -35,6 +37,7 @@ import tracemalloc
 import csv
 import gc
 import math
+import hashlib
 import json
 import subprocess
 import numpy as np
@@ -142,20 +145,42 @@ def measure_pipeline(build_fn, run_fn):
 # regenerate the identical points from the seed, so only scalar timings/memory cross
 # the process boundary; the exactness check runs separately, in-process (see loop).
 
+def _labels_hash(labels_dict):
+    """Order-stable fingerprint of the partition labels at every cut height.
+
+    Computed in the worker AFTER timing and tracing have stopped, so it never
+    perturbs a measured region. Identical fingerprints across repetitions
+    prove every timed repetition produced byte-identical cluster assignments;
+    the untimed ARI pass then certifies that (common) partition against the
+    dense baseline. Hashes are comparable across reps of the SAME method only
+    (dense vs sparse label IDs differ by permutation).
+    """
+    hsh = hashlib.sha256()
+    for h in sorted(labels_dict):
+        hsh.update(np.ascontiguousarray(labels_dict[h]).tobytes())
+    return hsh.hexdigest()[:16]
+
+
 def _worker(params_json):
     # ONE measurement per fresh process: either the dense baseline OR the sparse
     # pipeline (never both), so each side pays the full cold-process cost symmetrically.
     p = json.loads(params_json)
     pts = generate_clustered_points(p["n"], p["n_centres"], p["spread_m"])
+    c0 = time.process_time()  # CPU-time evidence: single-threaded => cpu_s ~= wall
     if p["kind"] == "dense":
-        _, dt, dm = measure(lambda: dense_hclust(pts, p["cuts"], p["method"]))
-        out = {"dense_time": dt, "dense_mem": dm}
+        res, dt, dm = measure(lambda: dense_hclust(pts, p["cuts"], p["method"]))
+        out = {"dense_time": dt, "dense_mem": dm,
+               "labels_hash": _labels_hash(res["labels"])}
     else:  # sparse pipeline (graph + HAC)
-        graph, _r, gt, ht, sm = measure_pipeline(
+        graph, res, gt, ht, sm = measure_pipeline(
             lambda: spatial_dist_graph(pts, p["h_max"]),
             lambda g: sparse_hclust(g, p["cuts"], p["method"]))
         out = dict(graph_time=gt, hac_time=ht, sparse_mem=sm,
-                   n_edges=int(graph["n_edges"]), density=float(graph["density"]))
+                   n_edges=int(graph["n_edges"]), density=float(graph["density"]),
+                   labels_hash=_labels_hash(res["labels"]))
+    out["cpu_s"] = round(time.process_time() - c0, 4)
+    import resource
+    out["rss_mib"] = round(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024, 1)  # peak RSS cross-check for tracemalloc
     print("RESULT " + json.dumps(out), flush=True)
 
 
@@ -252,13 +277,16 @@ for scenario_name, scenario_cfg in SCENARIOS.items():
 
             # --- Timing: dense and sparse EACH in their own fresh COLD subprocess,
             # so both pay the full fresh-process (cold-allocator) cost symmetrically. ---
+            dense_hashes, sparse_hashes = [], []
             for rep in range(N_REP):
                 d = None
                 if run_dense:
                     d = measure_cold({**wp, "kind": "dense"})
                     dense_times.append(d["dense_time"])
                     dense_mems.append(d["dense_mem"])
+                    dense_hashes.append(d["labels_hash"])
                 s = measure_cold({**wp, "kind": "sparse"})
+                sparse_hashes.append(s["labels_hash"])
                 gt, ht, sm = s["graph_time"], s["hac_time"], s["sparse_mem"]
                 graph_times.append(gt)
                 hac_times.append(ht)
@@ -278,6 +306,16 @@ for scenario_name, scenario_cfg in SCENARIOS.items():
                     "sparse_mem_mib": round(sm, 2),
                     "graph_time_s":   round(gt, 4),
                     "hac_time_s":     round(ht, 4),
+                    # Single-threadedness evidence (cpu ~= wall) and peak-RSS
+                    # cross-check for the tracemalloc figures, per worker.
+                    "dense_cpu_s":    d["cpu_s"] if run_dense else "",
+                    "dense_rss_mib":  d["rss_mib"] if run_dense else "",
+                    "sparse_cpu_s":   s["cpu_s"],
+                    "sparse_rss_mib": s["rss_mib"],
+                    # Partition fingerprints: equal across reps of the same
+                    # method <=> every repetition produced identical labels.
+                    "dense_labels_hash":  d["labels_hash"] if run_dense else "",
+                    "sparse_labels_hash": s["labels_hash"],
                     "exact_mode":     exact_mode,
                     "exact_agree":    None,   # backfilled by the exactness pass below
                     "exact_ari":      None,
@@ -288,6 +326,13 @@ for scenario_name, scenario_cfg in SCENARIOS.items():
             # measured region; the partition is deterministic, so a single pass certifies
             # it. Validated by PARTITION IDENTITY (adjusted_rand_score == 1.0), which is
             # permutation-invariant and strictly stronger than equal cluster counts.
+            # Per-repetition identity: every timed repetition fingerprinted its
+            # partition in its own subprocess; identical fingerprints prove all
+            # repetitions produced byte-identical labels, so the single ARI
+            # pass below certifies EVERY repetition, not just one.
+            reps_identical = (len(set(sparse_hashes)) <= 1
+                              and (not run_dense or len(set(dense_hashes)) <= 1))
+
             pts = generate_clustered_points(n_total=n, n_centres=n_centres,
                                             spread_m=spread_m)
             if run_dense:
@@ -297,7 +342,7 @@ for scenario_name, scenario_cfg in SCENARIOS.items():
                 aris = [adjusted_rand_score(dn["labels"][h], sx["labels"][h])
                         for h in valid_cuts]
                 config_min_ari = min(aris) if aris else 1.0
-                config_all_agree = (config_min_ari == 1.0)
+                config_all_agree = (config_min_ari == 1.0) and reps_identical
                 del dn, gx, sx
             else:
                 # reproducibility: the deterministic pipeline returns byte-identical
@@ -307,7 +352,7 @@ for scenario_name, scenario_cfg in SCENARIOS.items():
                 g2 = spatial_dist_graph(pts, h_max)
                 s2 = sparse_hclust(g2, H_CUTS, METHOD)
                 config_all_agree = all(np.array_equal(s1["labels"][h], s2["labels"][h])
-                                       for h in valid_cuts)
+                                       for h in valid_cuts) and reps_identical
                 config_min_ari = ""
                 del g1, s1, g2, s2
             del pts

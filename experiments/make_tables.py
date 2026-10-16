@@ -474,7 +474,12 @@ def make_tab_hdbscan():
                 else f"{int(round(mib))}\\,MiB")
 
     def _time(s):
-        return f"{fmt_int(int(round(float(s))))}\\,s"
+        # One decimal below 10 s so the table matches the prose (e.g. 5.8 s,
+        # not 6 s); integer seconds above.
+        s = float(s)
+        if s < 10:
+            return f"{s:.1f}\\,s"
+        return f"{fmt_int(int(round(s)))}\\,s"
 
     tex_lines = []
     for r in hdb:

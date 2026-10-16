@@ -94,24 +94,33 @@ def generate_clustered_points(n_total, n_centres, spread_m,
 # =====================================================================
 
 def make_scenario_figure(out_path):
-    """Three-panel conceptual illustration of density scenarios.
+    """Three-panel illustration of the three benchmark density scenarios.
 
-    Uses a compact domain (20 km) with h_max = 5 km so that the cluster
-    structure, edge connectivity, and component boundaries are all
-    clearly visible at print resolution.  Parameters are proportional
-    to the benchmark scenarios (same spread_factor × h_max ratios).
+    Uses the *same* scenario-defining parameters as ``benchmark.py``
+    (``n_centres`` = 100/50/20, ``spread_factor`` = 0.03/0.10/0.30 × h_max)
+    on the benchmark's 500 km domain, rendered at a single representative
+    (n, h_max) drawn from the benchmark sweep so the panels are a genuine
+    small instance of the benchmarked scenarios. The scenario labels carry
+    no printed k-bar/density values: the mean neighbourhood size varies with
+    n and h_max across the sweep, so a single illustrative value would
+    misrepresent the benchmark (the benchmarked k-bar range is reported in
+    the text and tables). The point of the figure is the qualitative
+    density progression tight -> moderate -> loose.
     """
     from matplotlib.collections import LineCollection
 
+    # Scenario-defining parameters identical to benchmark.py.
     SCENARIOS = [
-        ("Tight",    dict(n_centres=15, spread_factor=0.03)),
-        ("Moderate", dict(n_centres=8,  spread_factor=0.10)),
-        ("Loose",    dict(n_centres=4,  spread_factor=0.30)),
+        ("Tight",    dict(n_centres=100, spread_factor=0.03)),
+        ("Moderate", dict(n_centres=50,  spread_factor=0.10)),
+        ("Loose",    dict(n_centres=20,  spread_factor=0.30)),
     ]
 
-    n = 400
-    h_max = 5_000        # metres
-    domain_m = 20_000    # 20 km — compact enough to show structure
+    # A single representative (n, h_max) from the benchmark sweep, on the
+    # benchmark's 500 km domain.
+    n = 5_000
+    h_max = 50_000       # metres (one of the benchmark's h_max values)
+    domain_m = 500_000   # 500 km — the benchmark domain
 
     fig, axes = plt.subplots(1, 3, figsize=(7.16, 3.0))
 
@@ -147,12 +156,14 @@ def make_scenario_figure(out_path):
             segs = np.stack([pts_km[pairs[:, 0]],
                              pts_km[pairs[:, 1]]], axis=1)
             lc = LineCollection(segs, colors="#b0b0b0", linewidths=0.15,
-                                alpha=0.3, zorder=1)
+                                alpha=0.3, zorder=1, rasterized=True)
             ax.add_collection(lc)
 
-        # Draw points
+        # Draw points (rasterized: dense scatter + edges would bloat the
+        # vector PDF; 300 dpi keeps them crisp in print while text/axes
+        # stay vector).
         ax.scatter(pts_km[:, 0], pts_km[:, 1], s=4, color="black",
-                   alpha=0.8, zorder=2, linewidths=0)
+                   alpha=0.8, zorder=2, linewidths=0, rasterized=True)
 
         # Draw h_max scale bar in upper-right corner
         bar_x1 = domain_m / 1000 - 0.5
@@ -163,19 +174,9 @@ def make_scenario_figure(out_path):
         ax.text((bar_x0 + bar_x1) / 2, bar_y + 0.5,
                 r"$h_{max}$", fontsize=7, ha="center", color="#d62728")
 
-        # Title + subtitle combined, well spaced
-        title_str = (f"{label}  "
-                     f"(C={cfg['n_centres']}, "
-                     r"$\sigma$" + f"={cfg['spread_factor']}" +
-                     r"$\,h_{max}$)")
-        ax.set_title(title_str, fontsize=9, pad=18)
+        # Scenario label only — no printed k-bar/density (see docstring).
+        ax.set_title(label, fontsize=10, pad=12)
 
-        # Stats below plot
-        ax.text(0.5, -0.15,
-                r"$\bar{k}$" + f" = {mean_k:.0f},  "
-                f"density = {graph_pct:.1f}%",
-                transform=ax.transAxes, ha="center", fontsize=7.5,
-                color="#555555")
         ax.set_aspect("equal")
         ax.set_xlim(-0.5, domain_m / 1000 + 0.5)
         ax.set_ylim(-0.5, domain_m / 1000 + 0.5)
@@ -186,11 +187,13 @@ def make_scenario_figure(out_path):
 
     fig.tight_layout(w_pad=1.0)
     fig.subplots_adjust(bottom=0.10, top=0.82)
-    fig.savefig(out_path, bbox_inches="tight")
+    fig.savefig(out_path, bbox_inches="tight", dpi=300)
     plt.close(fig)
     print(f"Saved {out_path}")
 
-    # Commit the illustration's k-bar/density figures (reported in the caption).
+    # Record the illustration's k-bar/density for provenance only (NOT shown
+    # on the figure or quoted in the caption; benchmarked values are in the
+    # results tables/prose).
     _stats_csv = os.path.join(RESULTS_DIR, "scenario_illustration.csv")
     with open(_stats_csv, "w", newline="") as _f:
         _w = csv.DictWriter(_f, fieldnames=scenario_stats[0].keys())

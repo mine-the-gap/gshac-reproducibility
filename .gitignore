@@ -5,6 +5,7 @@ results_fast/
 results*/run_logs/
 results/*.npy
 data/
+acm-tsas/
 
 # Claude Code local settings
 .claude/

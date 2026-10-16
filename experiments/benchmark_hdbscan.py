@@ -21,6 +21,8 @@ Outputs:
 
 from __future__ import annotations
 
+import _env  # noqa: F401  (pins thread pools to 1 and the paging state; must precede numpy/scipy/sklearn)
+
 import sys, os, time, gc, tracemalloc, csv, warnings
 import numpy as np
 from pathlib import Path

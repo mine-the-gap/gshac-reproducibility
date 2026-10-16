@@ -22,6 +22,8 @@ Output: results/benchmark_geonames_scaling.csv
 
 from __future__ import annotations
 
+import _env  # noqa: F401  (pins thread pools to 1 and the paging state; must precede numpy/scipy/sklearn)
+
 import sys, os, json, time, gc, tracemalloc, csv, subprocess
 import numpy as np
 from pathlib import Path
@@ -57,6 +59,7 @@ def _worker(npy_path, n, h_max, seed):
 
     gc.collect()
     tracemalloc.start()
+    c0 = time.process_time()  # CPU-time evidence: single-threaded => cpu_s ~= wall
     t0 = time.perf_counter()
     g = spatial_dist_graph(coords, h_max, metric="haversine")
     t_graph = time.perf_counter() - t0
@@ -67,6 +70,9 @@ def _worker(npy_path, n, h_max, seed):
     t_hac = time.perf_counter() - t1
     _, peak_h = tracemalloc.get_traced_memory()
     tracemalloc.stop()
+    cpu_s = time.process_time() - c0
+    import resource
+    rss_mib = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024  # peak RSS cross-check
 
     out = dict(
         n=n, h_max_m=h_max, n_edges=int(g["n_edges"]),
@@ -74,6 +80,8 @@ def _worker(npy_path, n, h_max, seed):
         n_components=int(g["n_components"]),
         n_clusters=int(np.unique(r["labels"][h_max]).size),
         t_graph=t_graph, t_hac=t_hac, t_total=t_graph + t_hac,
+        cpu_s=round(cpu_s, 4),
+        rss_mib=round(rss_mib, 1),
         graph_mem=peak_g / _MIB,
         hac_mem=(peak_h - cur) / _MIB,
         pipeline_mem=max(peak_g, peak_h) / _MIB,
@@ -153,7 +161,9 @@ if __name__ == "__main__":
                         ("t_total", "total_time_s"),
                         ("graph_mem", "graph_mem_mib"),
                         ("hac_mem", "hac_mem_mib"),
-                        ("pipeline_mem", "pipeline_mem_mib")]:
+                        ("pipeline_mem", "pipeline_mem_mib"),
+                        ("cpu_s", "cpu_s"),        # single-thread evidence
+                        ("rss_mib", "rss_mib")]:   # peak-RSS cross-check
             mean, sd = _agg(reps, k)
             row[name] = mean
             row[name + "_sd"] = sd
