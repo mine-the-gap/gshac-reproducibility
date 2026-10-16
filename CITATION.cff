@@ -2,9 +2,10 @@ cff-version: 1.2.0
 message: "If you use this software or its benchmarks, please cite the preprint below."
 title: "GSHAC benchmarks and reproducibility artifact"
 abstract: >-
-  Benchmarks, figure/table generators, and paper source for GSHAC
+  Benchmarks, data pipeline, and figure/table generators for GSHAC
   (Geographically Sparse Hierarchical Agglomerative Clustering). The GSHAC
-  library itself is maintained separately at https://github.com/mine-the-gap/gshac.
+  library itself is maintained separately at https://github.com/mine-the-gap/gshac
+  (archived at https://doi.org/10.5281/zenodo.19567090).
 type: software
 authors:
   - family-names: Maus
@@ -14,7 +15,7 @@ authors:
   - family-names: Borin
     given-names: "Vinicius Pozzobon"
     affiliation: "University of Oulu"
-repository-code: "https://github.com/vwmaus/gshac-sigspatial2026"
+repository-code: "https://github.com/mine-the-gap/gshac-reproducibility"
 url: "https://github.com/mine-the-gap/gshac"
 license: GPL-3.0
 keywords:
@@ -27,6 +28,10 @@ identifiers:
   - type: doi
     value: 10.48550/arXiv.2604.11656
     description: "arXiv preprint of the associated paper"
+  # TODO before release: add the archived-artifact Zenodo DOI here, e.g.
+  #  - type: doi
+  #    value: 10.5281/zenodo.XXXXXXX
+  #    description: "Archived snapshot of this reproducibility artifact"
 preferred-citation:
   type: article
   title: "Scalable Exact Hierarchical Agglomerative Clustering via Sparse Geographic Distance Graphs"
@@ -44,6 +49,19 @@ preferred-citation:
   url: "https://arxiv.org/abs/2604.11656"
   notes: "Preprint on arXiv (2604.11656); submitted to ACM Transactions on Spatial Algorithms and Systems."
 references:
+  - type: software
+    title: "GSHAC: Geographically Sparse Hierarchical Agglomerative Clustering"
+    authors:
+      - family-names: Maus
+        given-names: Victor
+        orcid: "https://orcid.org/0000-0002-7385-4723"
+      - family-names: Borin
+        given-names: "Vinicius Pozzobon"
+    doi: 10.5281/zenodo.19567090
+    url: "https://github.com/mine-the-gap/gshac"
+    version: "1.1.0"
+    license: GPL-3.0
+    notes: "The GSHAC library benchmarked by this artifact (pinned to release 1.1.0)."
   - type: article
     title: "A data-driven approach to mapping global commodity-specific mining land-use"
     authors:

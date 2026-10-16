@@ -209,3 +209,7 @@ Machine-readable metadata for both is in [`CITATION.cff`](CITATION.cff).
 
 GPL-3.0. See [LICENSE](LICENSE). The GSHAC python library is licensed separately at
 [mine-the-gap/gshac](https://github.com/mine-the-gap/gshac).
+
+## Funding
+
+Funded by the European Union. This work was supported by the European Research Council (ERC) project MINE-THE-GAP [https://minethegap.eu](https://minethegap.eu) (grant agreement no. 101170578 [10.3030/101170578](https://doi.org/10.3030/101170578)). Views and opinions expressed are however those of the author only and do not necessarily reflect those of the European Union or the European Research Council Executive Agency. Neither the European Union nor the granting authority can be held responsible for them.
