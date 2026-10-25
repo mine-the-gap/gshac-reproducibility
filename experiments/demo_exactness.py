@@ -24,6 +24,19 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
+
+# Shared serif style — matches make_figures.py so all paper figures use one
+# font family.
+plt.rcParams.update({
+    "font.family": "serif",
+    "font.size": 9,
+    "axes.labelsize": 9,
+    "axes.titlesize": 10,
+    "xtick.labelsize": 8,
+    "ytick.labelsize": 8,
+    "legend.fontsize": 8,
+    "figure.dpi": 300,
+})
 from sklearn.datasets import make_moons, make_circles
 from sklearn.metrics import adjusted_rand_score
 from scipy.spatial.distance import pdist
@@ -127,11 +140,11 @@ for di, (dname, X) in enumerate(DATASETS):
                                      alpha=0.4, zorder=1))
     ax.scatter(X[:, 0], X[:, 1], s=4, color="black", zorder=2, linewidths=0)
     ax.set_title(f"{dname}\nsparse graph: {density_pct:.1f}% of pairs, "
-                 f"{n_components} comps", fontsize=8)
+                 f"{n_components} components", fontsize=8)
 
     ax = axes[di, 1]
     ax.scatter(X[:, 0], X[:, 1], s=6, color=_colors(l_gshac_v), linewidths=0)
-    ax.set_title(f"GSHAC ($h={H_VIEW}$): "
+    ax.set_title(f"GSHAC ($h = {H_VIEW:.2f}$): "
                  f"{len(np.unique(l_gshac_v))} clusters", fontsize=8)
 
     ax = axes[di, 2]

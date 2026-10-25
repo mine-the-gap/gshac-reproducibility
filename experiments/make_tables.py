@@ -312,7 +312,7 @@ def make_tab_sklearn():
 
     content = f"""\\begin{{table}}[t]
 \\caption{{GSHAC vs.\\ scikit-learn connectivity HAC (single linkage,
-  moderate, \\(\\hmax = 10\\)\\,km, \\(h_{{\\text{{cut}}}} = 5\\)\\,km), timed
+  moderate, \\(\\hmax = 10\\)\\,km, \\(h = 5\\)\\,km), timed
   \\emph{{end-to-end}} (sparse-structure construction + clustering) so both
   sides are measured symmetrically. Both recover the identical partition
   (ARI\\,=\\,1.0).}}
@@ -320,7 +320,7 @@ def make_tab_sklearn():
 \\small
 \\begin{{tabular}}{{r r r r r}}
 \\toprule
-\\(n\\) & GSHAC (s) & sklearn (s) & Ratio & Clusters \\\\
+\\(n\\) & GSHAC (s) & scikit-learn (s) & Ratio & Clusters \\\\
 \\midrule
 {body}
 \\bottomrule
@@ -349,7 +349,7 @@ def make_tab_geonames():
         e = int(data[h]["n_edges"])
         if e >= 1_000_000:
             return f"{e / 1_000_000:.1f}M"
-        return f"{round(e / 1000)}k"
+        return f"{round(e / 1000)}K"
 
     def _sparse(h):
         return _mem(data[h]["sparse_mib"])
@@ -368,7 +368,10 @@ def make_tab_geonames():
     def _maxsub(h):
         gib = float(data[h]["max_sub_full_gib"])
         if gib >= 1024:
-            return f"{gib / 1024:.1f}\\,TiB"
+            # 2 decimals below 2 TiB so ~1.15 TiB is not coarsened to 1.1;
+            # 1 decimal above (e.g. 7.8 TiB), matching the prose.
+            t = gib / 1024
+            return f"{t:.2f}\\,TiB" if t < 2 else f"{t:.1f}\\,TiB"
         if gib < 1:
             return f"{gib:.2f}\\,GiB"
         return f"{gib:.1f}\\,GiB"
@@ -428,11 +431,10 @@ def make_tab_geonames():
   (\\({dense_full_tib:.0f}\\,\\text{{TiB}}\\) full /
   \\({dense_cond_tib:.0f}\\,\\text{{TiB}}\\) condensed at 2M) is analytical and
   not run. \\emph{{Peak memory (graph)}} is the binding peak; the MST path keeps
-  \\emph{{Peak memory (HAC)}} far below it, and the 20\\,km graph sits at the
+  \\emph{{Peak memory (HAC)}} far below it, and the 20\\,km graph approaches the
   workstation's memory limit.}}
 \\label{{tab:geonames}}
 \\small
-\\resizebox{{\\columnwidth}}{{!}}{{%
 \\begin{{tabular}}{{l{'r' * ncol}}}
 \\toprule
 & \\multicolumn{{{ncol}}}{{c}}{{\\(\\hmax\\)}} \\\\
@@ -441,8 +443,7 @@ def make_tab_geonames():
 \\midrule
 {body}
 \\bottomrule
-\\end{{tabular}}%
-}}
+\\end{{tabular}}
 \\end{{table}}"""
 
     write_table("geonames", content)
@@ -507,10 +508,17 @@ def make_tab_hdbscan():
         f"\\quad\\(\\to h\\!=\\!10\\)\\,km & & & {fmt_int(c10)} & \\\\"
     )
 
+    # When GSHAC and HDBSCAN used the same number of repetitions (the current
+    # data: both 5), state it once; otherwise keep the per-method breakdown.
+    if hdb_reps == n_reps:
+        reps_note = f"Both: mean over {n_reps} repetitions."
+    else:
+        reps_note = f"GSHAC: mean over {n_reps} reps; HDBSCAN: {hdb_reps_desc}."
+
     body = "\n".join(tex_lines)
 
-    content = f"""\\begin{{table}}[!h]
-\\caption{{Resource comparison: \\texttt{{sklearn}} HDBSCAN vs.\\ GSHAC on a 100k
+    content = f"""\\begin{{table}}[!ht]
+\\caption{{Resource comparison: scikit-learn HDBSCAN vs.\\ GSHAC on a 100K
   subset of the GeoNames sample (\\(n = {fmt_int(n)}\\), haversine), both measured
   in this run with the same whole-pipeline peak-memory definition.
   Non-equivalent outputs; illustrates resource profiles only. The gap widens with
@@ -524,7 +532,7 @@ def make_tab_hdbscan():
 \\midrule
 {body}
 \\bottomrule
-\\multicolumn{{5}}{{l}}{{\\footnotesize \\(^{{*}}\\)GSHAC: mean over {n_reps} reps; HDBSCAN: {hdb_reps_desc}. One dendrogram cut at any \\(h \\leq \\hmax\\).}} \\\\
+\\multicolumn{{5}}{{l}}{{\\footnotesize \\(^{{*}}\\){reps_note} One dendrogram cut at any \\(h \\leq \\hmax\\).}} \\\\
 \\multicolumn{{5}}{{l}}{{\\footnotesize GSHAC peak is whole-pipeline: graph phase {_mem(g_graph)}, MST-path HAC phase {_mem(g_hac)}.}}
 \\end{{tabular}}
 \\end{{table}}"""

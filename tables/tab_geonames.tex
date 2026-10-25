@@ -7,23 +7,22 @@
   (\(29\,\text{TiB}\) full /
   \(15\,\text{TiB}\) condensed at 2M) is analytical and
   not run. \emph{Peak memory (graph)} is the binding peak; the MST path keeps
-  \emph{Peak memory (HAC)} far below it, and the 20\,km graph sits at the
+  \emph{Peak memory (HAC)} far below it, and the 20\,km graph approaches the
   workstation's memory limit.}
 \label{tab:geonames}
 \small
-\resizebox{\columnwidth}{!}{%
 \begin{tabular}{lrrrr}
 \toprule
 & \multicolumn{4}{c}{\(\hmax\)} \\
 \cmidrule(l){2-5}
 & \textbf{1\,km} & \textbf{5\,km} & \textbf{10\,km} & \textbf{20\,km} \\
 \midrule
-Edges & 793k & 11.5M & 37.8M & 125.8M \\
+Edges & 793K & 11.5M & 37.8M & 125.8M \\
 Sparse storage & 12\,MiB & 176\,MiB & 577\,MiB & 1.9\,GiB \\
 Components & 1{,}594{,}160 & 407{,}350 & 114{,}716 & 23{,}854 \\
 Singletons & 87.4\% & 63.8\% & 58.4\% & 54.4\% \\
 Largest component & 1{,}414 & 88{,}624 & 397{,}264 & 1{,}035{,}840 \\
-Max sub-matrix & 0.01\,GiB & 58.5\,GiB & 1.1\,TiB & 7.8\,TiB \\
+Max sub-matrix & 0.01\,GiB & 58.5\,GiB & 1.15\,TiB & 7.8\,TiB \\
 \addlinespace
 Graph time & 28\,s & 33\,s & 44\,s & 74\,s \\
 HAC time & 93\,s & 105\,s & 47\,s & 61\,s \\
@@ -31,6 +30,5 @@ Peak memory (graph) & 534\,MiB & 2.4\,GiB & 6.9\,GiB & 22.2\,GiB \\
 Peak memory (HAC) & 362\,MiB & 438\,MiB & 1.1\,GiB & 5.7\,GiB \\
 \textbf{Total time} & \textbf{2.0\,min} & \textbf{2.3\,min} & \textbf{1.5\,min} & \textbf{2.2\,min} \\
 \bottomrule
-\end{tabular}%
-}
+\end{tabular}
 \end{table}

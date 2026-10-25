@@ -1,6 +1,6 @@
 \begin{table}[t]
 \caption{GSHAC vs.\ scikit-learn connectivity HAC (single linkage,
-  moderate, \(\hmax = 10\)\,km, \(h_{\text{cut}} = 5\)\,km), timed
+  moderate, \(\hmax = 10\)\,km, \(h = 5\)\,km), timed
   \emph{end-to-end} (sparse-structure construction + clustering) so both
   sides are measured symmetrically. Both recover the identical partition
   (ARI\,=\,1.0).}
@@ -8,7 +8,7 @@
 \small
 \begin{tabular}{r r r r r}
 \toprule
-\(n\) & GSHAC (s) & sklearn (s) & Ratio & Clusters \\
+\(n\) & GSHAC (s) & scikit-learn (s) & Ratio & Clusters \\
 \midrule
 500 & 0.022 & 0.250 & 11.2$\times$ & 49 \\
 1{,}000 & 0.026 & 0.290 & 11.0$\times$ & 49 \\

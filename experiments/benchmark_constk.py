@@ -42,6 +42,19 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 from pathlib import Path
 
+# Shared serif style — matches make_figures.py so all paper figures use one
+# font family.
+plt.rcParams.update({
+    "font.family": "serif",
+    "font.size": 9,
+    "axes.labelsize": 9,
+    "axes.titlesize": 10,
+    "xtick.labelsize": 8,
+    "ytick.labelsize": 8,
+    "legend.fontsize": 8,
+    "figure.dpi": 300,
+})
+
 from gshac.spatial_dist_graph import spatial_dist_graph
 from gshac.sparse_hclust import sparse_hclust, dense_hclust
 
@@ -150,10 +163,123 @@ def _worker(params_json):
     print("RESULT " + json.dumps(out), flush=True)
 
 
+def plot_constk(rows, primary_k, h_max_km, fig_path):
+    """Render fig_constk from constk result rows. Pure plotting: reads no files
+    and runs no benchmark, so it can regenerate the figure from the committed
+    CSV. ``rows`` is a list of dicts with numeric ``n``, ``k_target``,
+    ``sparse_time_mean``, ``sparse_mem_mean`` and ``dense_time_mean`` /
+    ``dense_mem_mean`` ('' for the sparse-only rows beyond dense feasibility)."""
+    ks_unique = sorted(set(r["k_target"] for r in rows))
+    n_sizes = sorted(set(r["n"] for r in rows))
+    colors = cm.viridis(np.linspace(0.15, 0.85, len(ks_unique)))
+
+    fig, (ax_time, ax_mem) = plt.subplots(1, 2, figsize=(7.16, 3.0))
+
+    # Sparse curves, one per k
+    for i, k in enumerate(ks_unique):
+        rows_k = sorted([r for r in rows if r["k_target"] == k],
+                        key=lambda r: r["n"])
+        ns_k = [r["n"] for r in rows_k]
+        ts_k = [r["sparse_time_mean"] for r in rows_k]
+        ms_k = [r["sparse_mem_mean"]  for r in rows_k]
+        lw   = 2.0 if k == primary_k else 1.2
+        marker_size = 5 if k == primary_k else 3
+        label = f"GSHAC, $\\bar{{k}}$={k}" + (" (primary)" if k == primary_k else "")
+        ax_time.plot(ns_k, ts_k, "o-", color=colors[i], linewidth=lw,
+                     markersize=marker_size, label=label)
+        ax_mem.plot(ns_k, ms_k, "o-", color=colors[i], linewidth=lw,
+                    markersize=marker_size, label=label)
+
+    # Dense curve (dense is k-independent; use the first k that carries it)
+    dn_rows = sorted([r for r in rows
+                       if r["k_target"] == ks_unique[0]
+                       and r["dense_time_mean"] != ""],
+                      key=lambda r: r["n"])
+    if dn_rows:
+        dn_ns    = [r["n"] for r in dn_rows]
+        dn_times = [r["dense_time_mean"] for r in dn_rows]
+        dn_mems  = [r["dense_mem_mean"]  for r in dn_rows]
+        ax_time.plot(dn_ns, dn_times, "s--", color="#d62728",
+                     linewidth=1.5, markersize=4, label="Dense (fastcluster)")
+        ax_mem.plot(dn_ns, dn_mems, "s--", color="#d62728",
+                    linewidth=1.5, markersize=4, label="Dense (fastcluster)")
+
+    # Reference slopes anchored to the primary curve
+    n_ref = np.array([n_sizes[0], n_sizes[-1]], dtype=float)
+    ref_rows = sorted([r for r in rows if r["k_target"] == primary_k],
+                      key=lambda r: r["n"])
+    t_ref0 = ref_rows[0]["sparse_time_mean"]
+    m_ref0 = ref_rows[0]["sparse_mem_mean"]
+
+    ax_time.plot(n_ref, t_ref0 * (n_ref / n_ref[0]) ** 1.1, ":",
+                 color="grey", alpha=0.5, label=r"$O(n^{1.1})$ ref.")
+    if dn_rows:
+        ax_time.plot(n_ref, dn_times[0] * (n_ref / n_ref[0]) ** 2, ":",
+                     color="#d62728", alpha=0.3, label=r"$O(n^2)$ ref.")
+
+    ax_time.set_xscale("log")
+    ax_time.set_yscale("log")
+    ax_time.set_xlabel("$n$ (dataset size)", fontsize=9)
+    ax_time.set_ylabel("Wall time (s)", fontsize=9)
+    ax_time.set_title(f"Wall time (constant $\\bar{{k}}$, $h_{{\\max}} = {h_max_km:.0f}$ km)",
+                      fontsize=9)
+    ax_time.legend(fontsize=6, loc="best")
+    ax_time.grid(True, which="both", linestyle=":", linewidth=0.5, alpha=0.5)
+
+    ax_mem.plot(n_ref, m_ref0 * (n_ref / n_ref[0]), ":",
+                color="grey", alpha=0.5, label=r"$O(n)$ ref.")
+    if dn_rows:
+        ax_mem.plot(n_ref, dn_mems[0] * (n_ref / n_ref[0]) ** 2, ":",
+                    color="#d62728", alpha=0.3, label=r"$O(n^2)$ ref.")
+
+    ax_mem.set_xscale("log")
+    ax_mem.set_yscale("log")
+    ax_mem.set_xlabel("$n$ (dataset size)", fontsize=9)
+    ax_mem.set_ylabel("Peak memory (MiB)", fontsize=9)
+    ax_mem.set_title(f"Peak memory (constant $\\bar{{k}}$, $h_{{\\max}} = {h_max_km:.0f}$ km)",
+                     fontsize=9)
+    ax_mem.legend(fontsize=6, loc="best")
+    ax_mem.grid(True, which="both", linestyle=":", linewidth=0.5, alpha=0.5)
+
+    fig.tight_layout()
+    fig.savefig(fig_path, bbox_inches="tight")
+    plt.close(fig)
+    print(f"Saved {fig_path}")
+
+
+def _load_constk_rows(csv_path):
+    """Load constk result rows from CSV, coercing only the fields plot_constk
+    needs. Dense fields are '' for the sparse-only rows and are kept as ''."""
+    rows = []
+    with open(csv_path, newline="") as f:
+        for r in csv.DictReader(f):
+            rows.append({
+                "n":                int(float(r["n"])),
+                "k_target":         int(float(r["k_target"])),
+                "h_max_km":         float(r["h_max_km"]),
+                "sparse_time_mean": float(r["sparse_time_mean"]),
+                "sparse_mem_mean":  float(r["sparse_mem_mean"]),
+                "dense_time_mean":  float(r["dense_time_mean"]) if r["dense_time_mean"] not in ("", None) else "",
+                "dense_mem_mean":   float(r["dense_mem_mean"])  if r["dense_mem_mean"]  not in ("", None) else "",
+            })
+    return rows
+
+
 if len(sys.argv) > 1 and sys.argv[1] == "--worker":
     import warnings as _w
     _w.filterwarnings("ignore")
     _worker(sys.argv[2])
+    sys.exit(0)
+
+
+if len(sys.argv) > 1 and sys.argv[1] == "--replot":
+    # Regenerate figures/fig_constk.pdf from the committed CSV WITHOUT
+    # re-running the benchmark: reads results only, writes the figure only.
+    _csv_path = os.path.join(RESULTS_DIR, "benchmark_constk.csv")
+    _rows = _load_constk_rows(_csv_path)
+    _fig_path = os.path.join(FIGURES_DIR, "fig_constk.pdf")
+    plot_constk(_rows, PRIMARY_K, _rows[0]["h_max_km"], _fig_path)
+    print(f"Replotted from {_csv_path} (no benchmark run)")
     sys.exit(0)
 
 
@@ -307,82 +433,8 @@ if __name__ == "__main__":
     # Figure: multi-k slope invariance
     # ------------------------------------------------------------------
 
-    fig, (ax_time, ax_mem) = plt.subplots(1, 2, figsize=(7.16, 3.0))
-
-    ks_unique = sorted(set(r["k_target"] for r in rows))
-    colors = cm.viridis(np.linspace(0.15, 0.85, len(ks_unique)))
-
-    # Sparse curves, one per k
-    for i, k in enumerate(ks_unique):
-        rows_k = sorted([r for r in rows if r["k_target"] == k],
-                        key=lambda r: r["n"])
-        ns_k = [r["n"] for r in rows_k]
-        ts_k = [r["sparse_time_mean"] for r in rows_k]
-        ms_k = [r["sparse_mem_mean"]  for r in rows_k]
-        lw   = 2.0 if k == PRIMARY_K else 1.2
-        marker_size = 5 if k == PRIMARY_K else 3
-        label = f"GSHAC, $\\bar{{k}}$={k}" + (" (primary)" if k == PRIMARY_K else "")
-        ax_time.plot(ns_k, ts_k, "o-", color=colors[i], linewidth=lw,
-                     markersize=marker_size, label=label)
-        ax_mem.plot(ns_k, ms_k, "o-", color=colors[i], linewidth=lw,
-                    markersize=marker_size, label=label)
-
-    # Dense curve (use the first k's measured dense; dense is k-independent)
-    dn_rows = sorted([r for r in rows
-                       if r["k_target"] == K_TARGETS[0]
-                       and r["dense_time_mean"] != ""],
-                      key=lambda r: r["n"])
-    if dn_rows:
-        dn_ns    = [r["n"] for r in dn_rows]
-        dn_times = [r["dense_time_mean"] for r in dn_rows]
-        dn_mems  = [r["dense_mem_mean"]  for r in dn_rows]
-        ax_time.plot(dn_ns, dn_times, "s--", color="#d62728",
-                     linewidth=1.5, markersize=4, label="fastcluster (dense)")
-        ax_mem.plot(dn_ns, dn_mems, "s--", color="#d62728",
-                    linewidth=1.5, markersize=4, label="fastcluster (dense)")
-
-    # Reference slopes anchored to the primary curve
-    n_ref = np.array([N_SIZES[0], N_SIZES[-1]], dtype=float)
-    ref_rows = sorted([r for r in rows if r["k_target"] == PRIMARY_K],
-                      key=lambda r: r["n"])
-    t_ref0 = ref_rows[0]["sparse_time_mean"]
-    m_ref0 = ref_rows[0]["sparse_mem_mean"]
-
-    ax_time.plot(n_ref, t_ref0 * (n_ref / n_ref[0]) ** 1.1, ":",
-                 color="grey", alpha=0.5, label=r"$O(n^{1.1})$ ref.")
-    if dn_rows:
-        ax_time.plot(n_ref, dn_times[0] * (n_ref / n_ref[0]) ** 2, ":",
-                     color="#d62728", alpha=0.3, label=r"$O(n^2)$ ref.")
-
-    ax_time.set_xscale("log")
-    ax_time.set_yscale("log")
-    ax_time.set_xlabel("$n$ (dataset size)", fontsize=9)
-    ax_time.set_ylabel("Wall time (s)", fontsize=9)
-    ax_time.set_title(f"Wall time (constant $\\bar{{k}}$, $h_{{\\max}}=${h_max_km:.0f}\\,km)",
-                      fontsize=9)
-    ax_time.legend(fontsize=6, loc="best")
-    ax_time.grid(True, which="both", linestyle=":", linewidth=0.5, alpha=0.5)
-
-    ax_mem.plot(n_ref, m_ref0 * (n_ref / n_ref[0]), ":",
-                color="grey", alpha=0.5, label=r"$O(n)$ ref.")
-    if dn_rows:
-        ax_mem.plot(n_ref, dn_mems[0] * (n_ref / n_ref[0]) ** 2, ":",
-                    color="#d62728", alpha=0.3, label=r"$O(n^2)$ ref.")
-
-    ax_mem.set_xscale("log")
-    ax_mem.set_yscale("log")
-    ax_mem.set_xlabel("$n$ (dataset size)", fontsize=9)
-    ax_mem.set_ylabel("Peak memory (MiB)", fontsize=9)
-    ax_mem.set_title(f"Peak memory (constant $\\bar{{k}}$, $h_{{\\max}}=${h_max_km:.0f}\\,km)",
-                     fontsize=9)
-    ax_mem.legend(fontsize=6, loc="best")
-    ax_mem.grid(True, which="both", linestyle=":", linewidth=0.5, alpha=0.5)
-
-    fig.tight_layout()
     # FAST mode uses reduced data — never overwrite the tracked paper figure with it;
     # write a clearly-named copy under results/ instead.
     fig_path = (os.path.join(RESULTS_DIR, "fig_constk_fast.pdf") if FAST
                 else os.path.join(FIGURES_DIR, "fig_constk.pdf"))
-    fig.savefig(fig_path, bbox_inches="tight")
-    plt.close(fig)
-    print(f"Saved {fig_path}")
+    plot_constk(rows, PRIMARY_K, h_max_km, fig_path)

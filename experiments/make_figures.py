@@ -165,14 +165,18 @@ def make_scenario_figure(out_path):
         ax.scatter(pts_km[:, 0], pts_km[:, 1], s=4, color="black",
                    alpha=0.8, zorder=2, linewidths=0, rasterized=True)
 
-        # Draw h_max scale bar in upper-right corner
+        # Draw h_max scale bar just above the top frame, with its label above
+        # the bar. Blended transform: x in data (km), y in axes fraction, so a
+        # fixed clearance keeps the label off the top frame (and clear of the
+        # centred panel title) regardless of the data range.
         bar_x1 = domain_m / 1000 - 0.5
         bar_x0 = bar_x1 - h_max / 1000
-        bar_y = domain_m / 1000 + 0.8
-        ax.plot([bar_x0, bar_x1], [bar_y, bar_y], color="#d62728",
-                linewidth=2.0, solid_capstyle="butt", clip_on=False)
-        ax.text((bar_x0 + bar_x1) / 2, bar_y + 0.5,
-                r"$h_{max}$", fontsize=7, ha="center", color="#d62728")
+        bar_trans = ax.get_xaxis_transform()
+        ax.plot([bar_x0, bar_x1], [1.02, 1.02], color="#d62728",
+                linewidth=2.0, solid_capstyle="butt", clip_on=False,
+                transform=bar_trans)
+        ax.text((bar_x0 + bar_x1) / 2, 1.05, r"$h_{\max}$", fontsize=7,
+                ha="center", va="bottom", color="#d62728", transform=bar_trans)
 
         # Scenario label only — no printed k-bar/density (see docstring).
         ax.set_title(label, fontsize=10, pad=12)
@@ -250,7 +254,7 @@ def make_scaling_figure(rows, out_path):
                     alpha=0.6)
 
             if row_idx == 0:
-                ax.set_title(f"$h_{{max}}$ = {h:.0f} km", fontsize=10)
+                ax.set_title(f"$h_{{\\max}}$ = {h:.0f} km", fontsize=10)
             if row_idx == 1:
                 ax.set_xlabel("$n$")
             if col_idx == 0:
